@@ -42,10 +42,10 @@ const Header = () => {
                     <Link href="/trade" className={`hover:text-white transition-colors ${pathname === "/trade" ? "text-white" : ""}`}>
                         Trade
                     </Link>
-                    <Link href="/markets" className={`hover:text-white transition-colors ${pathname === "/markets" ? "text-white" : ""}`}>
+                    <Link href="/orders" className={`hover:text-white transition-colors ${pathname === "/orders" ? "text-white" : ""}`}>
                         Orders
                     </Link>
-                    <Link href="/rewards" className={`hover:text-white transition-colors ${pathname === "/rewards" ? "text-white" : ""}`}>
+                    <Link href="/resolvers" className={`hover:text-white transition-colors ${pathname === "/resolvers" ? "text-white" : ""}`}>
                         Resolvers
                     </Link>
                 </div>
@@ -103,18 +103,18 @@ const Header = () => {
                                 Trade
                             </Link>
                             <Link
-                                href="/markets"
+                                href="/orders"
                                 onClick={closeMobileMenu}
-                                className={`text-lg hover:text-white transition-colors ${pathname === "/markets" ? "text-white font-semibold" : "text-gray-300"}`}
+                                className={`text-lg hover:text-white transition-colors ${pathname === "/orders" ? "text-white font-semibold" : "text-gray-300"}`}
                             >
                                 Orders
                             </Link>
                             <Link
-                                href="/rewards"
+                                href="/resolvers"
                                 onClick={closeMobileMenu}
-                                className={`text-lg hover:text-white transition-colors ${pathname === "/rewards" ? "text-white font-semibold" : "text-gray-300"}`}
+                                className={`text-lg hover:text-white transition-colors ${pathname === "/resolvers" ? "text-white font-semibold" : "text-gray-300"}`}
                             >
-                                Account
+                                Resolvers
                             </Link>
                         </div>
 
