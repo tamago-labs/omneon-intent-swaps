@@ -44,50 +44,13 @@ const WhyChooseMoveOrbit = () => {
           viewport={{ once: true }}
         >
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Why Choose MoveOrbit
+            Comparison Table
           </h2>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto">
             The most advanced and secure solution for cross-chain operations between EVM and Move ecosystems
           </p>
         </motion.div>
 
-        {/* Advantages List */}
-        <div className="space-y-6">
-          {advantages.map((advantage, index) => (
-            <motion.div
-              key={advantage.title}
-              className="bg-slate-800/30 backdrop-blur-sm rounded-lg border border-slate-700/40 p-8 hover:bg-slate-800/50 hover:border-slate-600/40 transition-all duration-300"
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
-              viewport={{ once: true }}
-            >
-              <div className="flex flex-col md:flex-row md:items-center gap-6">
-                {/* Icon and Title */}
-                <div className="flex items-center gap-4 md:w-1/3">
-                  <div className="w-12 h-12 bg-slate-700 rounded-lg flex items-center justify-center text-slate-300">
-                    {advantage.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white mb-1">
-                      {advantage.title}
-                    </h3>
-                    <div className="text-slate-400 text-sm font-medium">
-                      {advantage.stats}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Description */}
-                <div className="md:w-2/3">
-                  <p className="text-slate-300 leading-relaxed">
-                    {advantage.description}
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
 
         {/* Comparison Table */}
         <motion.div
@@ -96,10 +59,7 @@ const WhyChooseMoveOrbit = () => {
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}
           viewport={{ once: true }}
-        >
-          <h3 className="text-2xl font-bold text-white text-center mb-12">
-            MoveOrbit vs Traditional Bridges
-          </h3>
+        > 
 
           <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/40 overflow-hidden">
             <div className="overflow-x-auto">
@@ -151,26 +111,6 @@ const WhyChooseMoveOrbit = () => {
           </div>
         </motion.div>
 
-        {/* Bottom CTA */}
-        {/* <motion.div
-          className="text-center mt-16"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-          viewport={{ once: true }}
-        >
-          <div className="bg-slate-800/30 backdrop-blur-sm rounded-xl border border-slate-700/40 p-8 max-w-2xl mx-auto">
-            <h4 className="text-xl font-semibold text-white mb-3">
-              Ready to experience the future of cross-chain?
-            </h4>
-            <p className="text-slate-400 mb-6">
-              Join thousands of users already bridging assets securely between EVM and Move ecosystems
-            </p>
-            <button className="px-8 py-3 bg-white text-slate-900 font-semibold rounded-lg hover:bg-slate-100 transition-all duration-300">
-              Start Trading Now
-            </button>
-          </div>
-        </motion.div> */}
       </div>
     </div>
   );

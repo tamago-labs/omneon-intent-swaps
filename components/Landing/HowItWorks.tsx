@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Globe, Lock, Zap } from 'lucide-react';
+import { Target, FileText, Users } from 'lucide-react';
 
 const HowItWorksSection = () => {
   const [activeStep, setActiveStep] = useState(0);
@@ -10,41 +10,44 @@ const HowItWorksSection = () => {
   const steps = [
     {
       id: 0,
-      title: "Select Chains",
-      description: "Choose your source and destination chains from our supported EVM and Move networks",
-      icon: <Globe size={20} />,
+      title: "Define Intent",
+      description: "Specify your cross-chain swap requirements with custom conditions and triggers",
+      icon: <Target size={20} />,
       details: [
-        "Pick from 9+ supported networks",
-        "EVM to Move or Move to EVM",
-        "Real-time exchange rates"
-      ]
+        "Set source and destination chains",
+        "Define token amounts and target rates",
+        "Add conditions like 'when rate hits $2.50'"
+      ],
+      example: "Swap 100 SUI for USDC on Ethereum when rate hits $2.50"
     },
     {
       id: 1,
       title: "Create Order",
-      description: "Set up your swap with built-in timelock protection for maximum security",
-      icon: <Lock size={20} />,
+      description: "Your intent is broadcast to the resolver network with timelock protection",
+      icon: <FileText size={20} />,
       details: [
-        "Specify token amounts",
-        "Set timelock parameters", 
-        "Configure safety deposits"
-      ]
+        "Intent signed and timestamped",
+        "Funds locked in escrow contract", 
+        "Order visible to all resolvers"
+      ],
+      example: "Order #1234 created with 24h execution window"
     },
     {
       id: 2,
-      title: "Atomic Settlement",
-      description: "Funds are settled simultaneously across chains via our escrow system",
-      icon: <Zap size={20} />,
+      title: "Resolver Execution",
+      description: "Qualified resolvers compete to fulfill your intent atomically across chains",
+      icon: <Users size={20} />,
       details: [
-        "Smart contract escrows",
-        "Hash-locked security",
-        "Instant cross-chain execution"
-      ]
+        "Resolvers check inventory & rates",
+        "Best resolver executes simultaneously",
+        "Atomic settlement or full refund"
+      ],
+      example: "Resolver executes: SUI locked → USDC delivered"
     }
   ];
 
   return (
-    <div className="w-full py-20" >
+    <div className="w-full py-20">
       <div className="max-w-6xl mx-auto px-4 md:px-10">
         {/* Header */}
         <motion.div
@@ -58,7 +61,7 @@ const HowItWorksSection = () => {
             How It Works
           </h2>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-            Simple three-step process for secure cross-chain swaps
+          AI-powered resolvers match and execute user intents across chains
           </p>
         </motion.div>
 
@@ -129,9 +132,11 @@ const HowItWorksSection = () => {
               </div>
 
               {/* Description */}
-              <p className="text-slate-300 text-lg mb-8 leading-relaxed">
+              <p className="text-slate-300 text-lg mb-6 leading-relaxed">
                 {steps[activeStep].description}
               </p>
+
+
 
               {/* Details */}
               <div className="space-y-3">
@@ -171,29 +176,7 @@ const HowItWorksSection = () => {
               </div>
             </motion.div>
           </div>
-        </div>
-
-        {/* Bottom Stats */}
-        {/* <motion.div
-          className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-6 text-center"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          viewport={{ once: true }}
-        >
-          <div className="bg-slate-800/30 backdrop-blur-sm rounded-lg border border-slate-700/30 p-6">
-            <div className="text-2xl font-bold text-white mb-1">~30s</div>
-            <div className="text-slate-400 text-sm">Average Settlement</div>
-          </div>
-          <div className="bg-slate-800/30 backdrop-blur-sm rounded-lg border border-slate-700/30 p-6">
-            <div className="text-2xl font-bold text-white mb-1">99.9%</div>
-            <div className="text-slate-400 text-sm">Success Rate</div>
-          </div>
-          <div className="bg-slate-800/30 backdrop-blur-sm rounded-lg border border-slate-700/30 p-6">
-            <div className="text-2xl font-bold text-white mb-1">$0</div>
-            <div className="text-slate-400 text-sm">Failed Transactions</div>
-          </div>
-        </motion.div> */}
+        </div> 
       </div>
     </div>
   );

@@ -4,7 +4,8 @@ import HowItWorksSection from "@/components/Landing/HowItWorks";
 import KeyFeaturesGrid from "@/components/Landing/KeyFeatures";
 import SupportedChainsSection from "@/components/Landing/SupportChain";
 import WhyChooseMoveOrbit from "@/components/Landing/WhyChooseMoveOrbit";
-
+import IntentBuilderSection from "@/components/Landing/IntentBuilder";
+import ComparisonTableSection from "@/components/Landing/ComparisonTable";
  
 
 export default function App() {
@@ -14,9 +15,9 @@ export default function App() {
        <HeroSection/>
        <SupportedChainsSection/>
        <HowItWorksSection/>
-       {/* <KeyFeaturesGrid/> */}
-       <WhyChooseMoveOrbit/>
-       <GetStartedCTA/>
+       <IntentBuilderSection/>
+       <ComparisonTableSection/>
+       {/* <GetStartedCTA/> */}
     </main>
   );
 }
