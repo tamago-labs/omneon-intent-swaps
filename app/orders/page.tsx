@@ -5,9 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, CheckCircle, XCircle, AlertTriangle, Eye, Filter, Search, Bot, Zap, TrendingUp } from 'lucide-react';
 
 const OrdersPage = () => {
-  const [selectedFilter, setSelectedFilter] = useState('all');
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState<any>('all');
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [searchTerm, setSearchTerm] = useState<any>('');
 
   const mockOrders = [
     {
@@ -198,7 +198,7 @@ const OrdersPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          {filteredOrders.map((order, index) => (
+          {filteredOrders.map((order: any, index: number) => (
             <motion.div
               key={order.id}
               className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6 hover:bg-slate-700/30 transition-colors cursor-pointer"
@@ -272,7 +272,7 @@ const OrdersPage = () => {
                 <div>
                   <div className="text-slate-400 text-sm mb-2">Partial Fills ({order.partialFills.length})</div>
                   <div className="space-y-2">
-                    {order.partialFills.slice(0, 2).map((fill, fillIndex) => (
+                    {order.partialFills.slice(0, 2).map((fill: any, fillIndex: number) => (
                       <div key={fillIndex} className="flex items-center justify-between text-sm bg-slate-700/20 rounded p-2">
                         <span className="text-white">{fill.amount}</span>
                         <span className="text-green-400">{fill.price}</span>
@@ -345,7 +345,7 @@ const OrdersPage = () => {
               <div className="mb-6">
                 <h4 className="text-white font-medium mb-4">Execution Timeline</h4>
                 <div className="space-y-3">
-                  {selectedOrder.executionSteps.map((step, index) => (
+                  {selectedOrder.executionSteps.map((step: any, index: number) => (
                     <div key={index} className="flex items-center gap-3">
                       <div className={`w-3 h-3 rounded-full ${
                         step.status === 'completed' ? 'bg-green-400' :
@@ -392,7 +392,7 @@ const OrdersPage = () => {
                 <div className="mb-6">
                   <h4 className="text-white font-medium mb-4">All Fills ({selectedOrder.partialFills.length})</h4>
                   <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {selectedOrder.partialFills.map((fill, fillIndex) => (
+                    {selectedOrder.partialFills.map((fill: any, fillIndex: number) => (
                       <div key={fillIndex} className="flex items-center justify-between text-sm bg-slate-700/30 rounded p-3">
                         <div className="text-white font-medium">{fill.amount}</div>
                         <div className="text-green-400">{fill.price}</div>
