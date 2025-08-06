@@ -19,7 +19,7 @@ contract ResolverRegistry is IResolverRegistry {
     }
 
     function registerResolver(address resolverAddress) external override onlyOwner {
-        if (resolvers[msg.sender].registeredAt > 0) revert ResolverAlreadyRegistered();
+        if (resolvers[resolverAddress].registeredAt > 0) revert ResolverAlreadyRegistered();
         
         resolvers[resolverAddress] = ResolverInfo({
             isActive: true,
@@ -31,10 +31,10 @@ contract ResolverRegistry is IResolverRegistry {
         emit ResolverRegistered(resolverAddress);
     }
 
-    function deregisterResolver() external override onlyOwner {
-        resolvers[msg.sender].isActive = false;
+    function deregisterResolver(address resolverAddress) external override onlyOwner {
+        resolvers[resolverAddress].isActive = false;
         
-        emit ResolverDeregistered(msg.sender);
+        emit ResolverDeregistered(resolverAddress);
     }
 
     function updateReputationOnSuccess(address resolver) external onlyOwner {
@@ -66,5 +66,4 @@ contract ResolverRegistry is IResolverRegistry {
     function getResolverInfo(address resolver) external view override returns (ResolverInfo memory) {
         return resolvers[resolver];
     }
-
 }

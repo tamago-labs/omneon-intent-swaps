@@ -2,6 +2,7 @@
 pragma solidity 0.8.23;
 
 interface IResolverRegistry {
+    
     struct ResolverInfo {
         bool isActive; 
         uint256 reputation;
@@ -17,11 +18,10 @@ interface IResolverRegistry {
     event ResolverSlashed(address indexed resolver, string reason);
     
     function registerResolver(address resolverAddress) external;
-    function deregisterResolver() external;
+    function deregisterResolver(address resolverAddress) external;
     function slashResolver(address resolver, string calldata reason) external;
  
     
     function isActiveResolver(address resolver) external view returns (bool);
     function getResolverInfo(address resolver) external view returns (ResolverInfo memory);
-   
 }
