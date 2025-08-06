@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { Loader } from "react-feather"
+import ConnectWallet from '../Wallet/ConnectWallet'
 
 const Header = () => {
     const pathname = usePathname()
@@ -51,9 +52,9 @@ const Header = () => {
                 </div>
 
                 {/* Desktop Connect Wallet Button */}
-                <button className="hidden md:block px-6 py-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium hover:shadow-lg hover:from-blue-600 hover:to-purple-700 transition-all">
-                    Connect Wallet
-                </button>
+                <div className="hidden md:block">
+                    <ConnectWallet />
+                </div>
 
                 {/* Mobile Menu Button */}
                 <button
@@ -120,12 +121,7 @@ const Header = () => {
 
                         {/* Mobile Connect Wallet Button */}
                         <div className="p-4 mt-8">
-                            <button
-                                onClick={closeMobileMenu}
-                                className="w-full px-6 py-3 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 text-white font-medium hover:shadow-lg hover:from-blue-600 hover:to-purple-700 transition-all"
-                            >
-                                Connect Wallet
-                            </button>
+                            <ConnectWallet />
                         </div>
                     </motion.div>
                 </motion.div>

@@ -107,11 +107,6 @@ const SupportedChainsSection = () => {
                         src={chain.icon} 
                         alt={chain.name}
                         className="w-6 h-6 rounded-full"
-                        onError={(e) => {
-                          // Fallback to colored circle with text if image fails to load
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
-                        }}
                       />
                       <div 
                         className={`w-6 h-6 ${chain.color} rounded-full items-center justify-center text-white text-xs font-bold hidden`}
@@ -163,11 +158,6 @@ const SupportedChainsSection = () => {
                         src={chain.icon} 
                         alt={chain.name}
                         className="w-6 h-6 rounded-full"
-                        onError={(e) => {
-                          // Fallback to colored circle with text if image fails to load
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
-                        }}
                       />
                       <div 
                         className={`w-6 h-6 ${chain.color} rounded-full items-center justify-center text-white text-xs font-bold hidden`}

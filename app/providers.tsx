@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from 'framer-motion';
 import { Amplify } from "aws-amplify";
+import WalletProviders from "@/components/Wallet/WalletProviders";
 
 import outputs from "@/amplify_outputs.json";
 import "@aws-amplify/ui-react/styles.css";
@@ -89,12 +90,10 @@ export function Providers({ children }: any) {
 
             {/* Bottom highlight gradient */}
             <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-blue-600/5 to-transparent" />
-            {/* <WalletProvider>
-                <AccountProvider>
-                    {children}
-                </AccountProvider>
-            </WalletProvider> */}
-            {children}
+            
+            <WalletProviders>
+                {children}
+            </WalletProviders>
         </div>
     );
 }
