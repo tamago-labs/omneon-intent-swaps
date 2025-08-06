@@ -313,14 +313,13 @@ const IntentBuilderSection: React.FC<IntentBuilderProps> = ({
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleCreateIntent}
-            >
-              <Shield size={20} />
+            > 
               {showHeader ? 'Try It Now' : 'Create Intent Order'}
               <ArrowRight size={20} />
             </motion.button>
             <p className="text-slate-400 text-sm mt-3">
               {showHeader 
-                ? 'Experience intent-based trading • No registration required'
+                ? "We're in early stages of development - use at your own risk"
                 : 'Protected by smart contract escrow • Cancel anytime before execution'
               }
             </p>

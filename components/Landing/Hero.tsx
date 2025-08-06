@@ -4,16 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Zap, Shield, Globe, ChevronUp, ChevronDown } from 'lucide-react';
 
-const HeroSection = () => {
-    // Mock data for cross-chain assets
-    const crossChainAssets = [
-        { symbol: 'ETH', chain: 'Ethereum', price: '$3,124.50', change: '+2.3%', isUp: true },
-        { symbol: 'SUI', chain: 'Sui', price: '$4.82', change: '+5.7%', isUp: true },
-        { symbol: 'APT', chain: 'Aptos', price: '$12.45', change: '-1.2%', isUp: false },
-        { symbol: 'USDC', chain: 'Multi-chain', price: '$1.00', change: '+0.1%', isUp: true },
-        { symbol: 'BTC', chain: 'Wrapped', price: '$97,342', change: '+1.8%', isUp: true },
-        { symbol: 'MOVE', chain: 'Movement', price: '$2.15', change: '+12.4%', isUp: true },
-    ];
+const HeroSection = () => { 
 
     return (
         <div className="relative w-full  py-20">
@@ -29,7 +20,7 @@ const HeroSection = () => {
                             transition={{ duration: 0.5 }}
                         >
                             <Zap size={16} className="text-blue-400" />
-                            Intent-Based Swaps via AI
+                            Powered by OKX DEX API
                         </motion.div>
 
                         <motion.h1
@@ -51,7 +42,7 @@ const HeroSection = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.2 }}
                         >
-                            Intent-based cross-chain DEX enable faster, cheaper swaps between Ethereum and Move ecosystems through OKX’s aggregated liquidity
+                           An intent-based cross-chain DEX enabling faster, cheaper swaps between Ethereum and Move powered by AI-driven resolvers and OKX’s aggregated liquidity
                         </motion.p>
 
                         {/* CTA Buttons */}
