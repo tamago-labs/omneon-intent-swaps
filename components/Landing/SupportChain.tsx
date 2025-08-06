@@ -12,12 +12,12 @@ const SupportedChainsSection = () => {
       color: 'bg-blue-500',
       icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png'
     },
-    { 
-      name: 'Polygon', 
-      symbol: 'MATIC', 
-      color: 'bg-purple-500',
-      icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/3890.png'
-    },
+    // { 
+    //   name: 'Polygon', 
+    //   symbol: 'MATIC', 
+    //   color: 'bg-purple-500',
+    //   icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/3890.png'
+    // },
     { 
       name: 'Base', 
       symbol: 'BASE', 
@@ -30,18 +30,18 @@ const SupportedChainsSection = () => {
       color: 'bg-red-500',
       icon: 'https://optimistic.etherscan.io/assets/optimism/images/svg/logos/token-secondary-light.svg?v=25.7.5.2'
     },
-    { 
-      name: 'BNB Chain', 
-      symbol: 'BNB', 
-      color: 'bg-yellow-500',
-      icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1839.png'
-    },
-    { 
-      name: 'Cronos', 
-      symbol: 'CRO', 
-      color: 'bg-blue-700',
-      icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/3635.png'
-    },
+    // { 
+    //   name: 'BNB Chain', 
+    //   symbol: 'BNB', 
+    //   color: 'bg-yellow-500',
+    //   icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1839.png'
+    // },
+    // { 
+    //   name: 'Cronos', 
+    //   symbol: 'CRO', 
+    //   color: 'bg-blue-700',
+    //   icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/3635.png'
+    // },
   ];
 
   const moveChains = [
