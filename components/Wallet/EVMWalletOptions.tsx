@@ -10,13 +10,17 @@ interface EVMWalletOptionsProps {
 
 const EVMWalletOptions = ({ onConnect }: EVMWalletOptionsProps) => {
   const { connectors, connect, isPending } = useConnect()
-  const { isConnected } = useAccount()
+  const { isConnected, address } = useAccount()
 
+  // Only call onConnect when actually connected with an address
   React.useEffect(() => {
-    if (isConnected) {
-      onConnect()
+    if (isConnected && address) {
+      // Small delay to ensure wagmi state is fully updated
+      setTimeout(() => {
+        onConnect()
+      }, 100)
     }
-  }, [isConnected, onConnect])
+  }, [isConnected, address, onConnect])
 
   const getConnectorIcon = (name: string) => {
     const lowerName = name.toLowerCase()
@@ -27,12 +31,16 @@ const EVMWalletOptions = ({ onConnect }: EVMWalletOptionsProps) => {
     return '🔌'
   }
 
+  const handleConnect = (connector: any) => {
+    connect({ connector })
+  }
+
   return (
     <div className="space-y-2">
       {connectors.map((connector) => (
         <button
           key={connector.uid}
-          onClick={() => connect({ connector })}
+          onClick={() => handleConnect(connector)}
           disabled={isPending}
           className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-700/50 hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >

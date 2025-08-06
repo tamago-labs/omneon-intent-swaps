@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { ChevronDown, Wallet, LogOut } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAccount, useDisconnect } from 'wagmi'
-import { useCurrentAccount } from '@mysten/dapp-kit'
+import { useCurrentAccount, useDisconnectWallet } from '@mysten/dapp-kit'
 import { useWalletType } from '../../lib/wallet-type-context'
 import EVMWalletOptions from './EVMWalletOptions'
 import SUIWalletOptions from './SUIWalletOptions'
@@ -19,9 +19,21 @@ const ConnectWallet = () => {
   const { address: evmAddress, isConnected: isEVMConnected } = useAccount()
   const { disconnect: disconnectEVM } = useDisconnect()
   const suiAccount = useCurrentAccount()
+  const { mutate: disconnectSUI } = useDisconnectWallet()
 
   const isConnected = isEVMConnected || !!suiAccount
   const connectedAddress = evmAddress || suiAccount?.address
+
+  // Auto-detect and set wallet type based on actual connections
+  useEffect(() => {
+    if (isEVMConnected && evmAddress && !suiAccount) {
+      setWalletType('evm')
+    } else if (suiAccount && suiAccount.address && !isEVMConnected) {
+      setWalletType('sui')
+    } else if (!isEVMConnected && !suiAccount) {
+      setWalletType(null)
+    }
+  }, [isEVMConnected, evmAddress, suiAccount, setWalletType])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -36,13 +48,20 @@ const ConnectWallet = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleDisconnect = () => {
-    if (walletType === 'evm' && isEVMConnected) {
-      disconnectEVM()
+  const handleDisconnect = async () => {
+    try {
+      if (walletType === 'evm' && isEVMConnected) {
+        disconnectEVM()
+      } else if (walletType === 'sui' && suiAccount) {
+        disconnectSUI()
+      }
+      
+      // Reset wallet type and close dropdown
+      setWalletType(null)
+      setIsOpen(false)
+    } catch (error) {
+      console.error('Error disconnecting wallet:', error)
     }
-    // SUI disconnect is handled by the SUI components
-    setWalletType(null)
-    setIsOpen(false)
   }
 
   const handleWalletTypeSelect = (type: 'evm' | 'sui') => {
@@ -67,8 +86,7 @@ const ConnectWallet = () => {
         <button
           onClick={() => setIsOpen(!isOpen)}
           className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium hover:shadow-lg hover:from-green-600 hover:to-emerald-700 transition-all"
-        >
-          <Wallet size={16} />
+        > 
           <span className="hidden sm:inline">{formatAddress(connectedAddress)}</span>
           <span className="sm:hidden">Connected</span>
           <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -135,8 +153,8 @@ const ConnectWallet = () => {
                     className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-700/50 hover:bg-slate-700 transition-colors group"
                   >
                     <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
-                      <img className="w-6 h-6 rounded-full"  src="https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png"/>
-                    </div> 
+                      <img className="w-6 h-6 rounded-full" src="https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png" alt="ETH" />
+                    </div>
                     <div className="text-left">
                       <div className="text-white font-medium">EVM Wallets</div>
                       <div className="text-slate-400 text-sm">MetaMask, Phantom, Nightly</div>
@@ -148,7 +166,7 @@ const ConnectWallet = () => {
                     className="w-full flex items-center gap-3 p-3 rounded-lg bg-slate-700/50 hover:bg-slate-700 transition-colors group"
                   >
                     <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                      <img className="w-6 h-6 rounded-full"  src="https://s2.coinmarketcap.com/static/img/coins/64x64/20947.png"/>
+                      <img className="w-6 h-6 rounded-full" src="https://s2.coinmarketcap.com/static/img/coins/64x64/20947.png" alt="SUI" />
                     </div>
                     <div className="text-left">
                       <div className="text-white font-medium">SUI Wallets</div>
