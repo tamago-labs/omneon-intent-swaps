@@ -29,11 +29,11 @@ const HeroSection = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.1 }}
                         >
-                            Smarter
+                            Omni Intent
                             <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
                                 {" "}Swaps{" "}
                             </span>
-                            Ethereum ↔ SUI
+                            EVM ↔ MoveVM
                         </motion.h1>
 
                         <motion.p
@@ -42,7 +42,7 @@ const HeroSection = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.2 }}
                         > 
-                            An intent-based cross-chain DEX enabling faster, cheaper swaps between Ethereum and SUI, powered by SUI's native bridge and OKX’s aggregated liquidity
+                          An intent-based cross-chain DEX enabling faster, cheaper swaps  between Ethereum and Move ecosystems powered by AI-driven resolvers and OKX’s aggregated liquidity
                         </motion.p>
 
                         {/* CTA Buttons */}

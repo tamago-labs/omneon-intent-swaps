@@ -12,9 +12,8 @@ const SoraFont = Sora({
 
 
 export const metadata: Metadata = {
-  title: "Ethereum to SUI Cross-Chain Swaps | Powered by OKX DEX API",
-  description:
-    "Fast, low-cost cross-chain swaps between Ethereum and SUI. Powered by OKX DEX API and SUI’s native bridge with AI-powered intent resolution.",
+  title: "Omneon.xyz | Omni Intent DEX across 7 chains",
+  description: "Omneon is an AI-powered intent-based cross-chain DEX supporting swaps across Ethereum, SUI, and 5+ chains. Powered by OKX’s aggregated liquidity and native bridging, it enables faster, cheaper execution with intelligent routing.",
 };
 
 export default function RootLayout({
