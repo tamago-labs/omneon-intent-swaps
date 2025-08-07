@@ -4,7 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRight, Zap, Shield, Globe, ChevronUp, ChevronDown } from 'lucide-react';
 
-const HeroSection = () => { 
+const HeroSection = () => {
 
     return (
         <div className="relative w-full  py-20">
@@ -29,11 +29,11 @@ const HeroSection = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.1 }}
                         >
-                            Bridge-Free
+                            Smarter
                             <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-cyan-400 bg-clip-text text-transparent">
                                 {" "}Swaps{" "}
                             </span>
-                            EVM ↔ MoveVM
+                            Ethereum ↔ SUI
                         </motion.h1>
 
                         <motion.p
@@ -41,8 +41,8 @@ const HeroSection = () => {
                             initial={{ opacity: 0, y: 30 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.2 }}
-                        >
-                           An intent-based cross-chain DEX enabling faster, cheaper swaps between Ethereum and Move powered by AI-driven resolvers and OKX’s aggregated liquidity
+                        > 
+                            An intent-based cross-chain DEX enabling faster, cheaper swaps between Ethereum and SUI, powered by SUI's native bridge and OKX’s aggregated liquidity
                         </motion.p>
 
                         {/* CTA Buttons */}
