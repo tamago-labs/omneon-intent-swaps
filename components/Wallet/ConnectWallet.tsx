@@ -23,14 +23,14 @@ const ConnectWallet = () => {
 
   const connectedCount = getConnectedCount()
 
-  // Auto-sync with actual wallet states - fixed dependency arrays
+  // Auto-sync with actual wallet states 
   useEffect(() => {
     if (isEVMWalletConnected && evmAddress) {
       setEVMWallet(evmAddress)
     } else if (!isEVMWalletConnected) {
       setEVMWallet(null)
     }
-  }, [isEVMWalletConnected, evmAddress]) // Removed setEVMWallet from deps
+  }, [isEVMWalletConnected, evmAddress])  
 
   useEffect(() => {
     if (suiAccount?.address) {
@@ -38,7 +38,7 @@ const ConnectWallet = () => {
     } else if (!suiAccount) {
       setSUIWallet(null)
     }
-  }, [suiAccount?.address]) // Fixed dependency to only track address changes
+  }, [suiAccount?.address]) 
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

@@ -60,9 +60,7 @@ const HeroSection = () => {
                             <button className="flex-1 px-4 py-3 sm:px-8 sm:py-4 bg-slate-800/80 backdrop-blur-sm text-white font-medium sm:font-semibold text-sm sm:text-base rounded-xl border border-slate-700/50 hover:bg-slate-700/80 hover:border-slate-600/50 transition-all duration-300">
                                 Explore Docs
                             </button>
-                        </motion.div>
-
-
+                        </motion.div> 
                     </div>
 
                     {/* Right column - Interactive visualization */}
