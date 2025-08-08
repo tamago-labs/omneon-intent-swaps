@@ -133,7 +133,7 @@ const OrdersPage = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800">
+    <div className="min-h-screen  ">
       <div className="max-w-7xl mx-auto px-4 md:px-10 py-8">
         {/* Header */}
         <motion.div
