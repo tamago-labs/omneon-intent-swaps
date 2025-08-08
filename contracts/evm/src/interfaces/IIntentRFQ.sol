@@ -4,7 +4,8 @@ pragma solidity 0.8.23;
 import { Address } from "../libraries/AddressLib.sol";
 
 interface IIntentRFQ {
-    enum ChainType { EVM, SUI, SOLANA, APTOS, BITCOIN }
+    
+    enum ChainType { EVM, SUI, SOLANA, APTOS, BITCOIN, MOVEMENT, UMI, IOTA, SUPRA, MASSA }
     enum OrderStatus { Unknown, Pending, Completed, Cancelled }
 
     error InvalidResolver();
