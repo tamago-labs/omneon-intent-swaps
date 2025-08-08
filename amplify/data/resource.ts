@@ -25,7 +25,7 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.publicApiKey(),
     ]),
-  User: a
+  Wallet: a
     .model({
       address: a.string().required(), // Wallet address
       chainType: a.integer(), // 0: EVM, 1: SUI, 2: SOLANA, 3: APTOS, 4: BITCOIN, 5: MOVEMENT, 6: UMI, 7: IOTA, 8: SUPRA, 9: MASSA
@@ -42,7 +42,7 @@ const schema = a.schema({
   Order: a
     .model({
       userId: a.id().required(),
-      user: a.belongsTo("User", "userId"),
+      user: a.belongsTo("Wallet", "userId"),
       resolverId: a.id().required(),
       resolver: a.belongsTo("Resolver", "resolverId"),
       intentId: a.string().required(), // bytes32 from smart contract also duplicate it for ID 
