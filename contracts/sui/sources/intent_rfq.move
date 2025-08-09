@@ -143,7 +143,7 @@ module omneon::intent_rfq {
     // ======== Resolver Registry Functions ========
 
     /// Register a new resolver
-    public fun register_resolver(
+    public entry fun register_resolver(
         registry: &mut ResolverRegistry,
         resolver: address,
         ctx: &mut TxContext
@@ -190,7 +190,7 @@ module omneon::intent_rfq {
     }
 
     /// Update resolver reputation on successful execution
-    public fun update_resolver_reputation(
+    public entry fun update_resolver_reputation(
         registry: &mut ResolverRegistry,
         resolver: address,
         success: bool,
@@ -213,13 +213,13 @@ module omneon::intent_rfq {
 
     // ======== Intent RFQ Functions ========
 
-    /// Create a new order with ERC20-like token transfer
+    /// Create a new order 
     public fun create_order<T>(
         intent_rfq: &mut IntentRFQ,
         registry: &ResolverRegistry,
         source_type: ChainType,
         source_chain_id: u64,
-        mut payment: Coin<T>,
+        payment: Coin<T>,
         dest_type: ChainType,
         dest_chain_id: u64,
         min_amount_out: u64,
@@ -251,8 +251,9 @@ module omneon::intent_rfq {
         let amount_to_resolver = amount_in - fee_amount;
 
         // Split payment for fee and resolver transfer
-        let fee_balance = coin::into_balance(coin::split(&mut payment, fee_amount, ctx));
-        
+        let mut payment_balance = coin::into_balance(payment);
+        let fee_balance = balance::split(&mut payment_balance, fee_amount);
+
         // Get token type string for fee storage
         let token_type = get_token_type_string<T>();
         
@@ -264,8 +265,8 @@ module omneon::intent_rfq {
             bag::add(&mut intent_rfq.collected_fees, token_type, fee_balance);
         };
 
-        // Transfer remaining tokens directly to resolver (simulating ERC20 transfer)
-        transfer::public_transfer(payment, resolver);
+        // Transfer remaining tokens directly to resolver  
+        transfer::public_transfer( coin::from_balance( payment_balance , ctx) , resolver);
 
         // Emit event
         event::emit(OrderCreated {
@@ -286,8 +287,8 @@ module omneon::intent_rfq {
 
     // ======== Status Root Management ========
 
-    /// Update all merkle tree roots in a single transaction (gas optimized)
-    public fun update_all_status_roots(
+    /// Update all merkle tree roots in a single transaction
+    public entry fun update_all_status_roots(
         intent_rfq: &mut IntentRFQ,
         registry: &ResolverRegistry,
         new_pending_root: vector<u8>,
@@ -314,7 +315,7 @@ module omneon::intent_rfq {
     }
 
     /// Update pending orders root
-    public fun update_pending_orders_root(
+    public entry fun update_pending_orders_root(
         intent_rfq: &mut IntentRFQ,
         registry: &ResolverRegistry,
         new_root: vector<u8>,
@@ -330,7 +331,7 @@ module omneon::intent_rfq {
     }
 
     /// Update completed orders root
-    public fun update_completed_orders_root(
+    public entry fun update_completed_orders_root(
         intent_rfq: &mut IntentRFQ,
         registry: &ResolverRegistry,
         new_root: vector<u8>,
@@ -346,7 +347,7 @@ module omneon::intent_rfq {
     }
 
     /// Update cancelled orders root
-    public fun update_cancelled_orders_root(
+    public entry fun update_cancelled_orders_root(
         intent_rfq: &mut IntentRFQ,
         registry: &ResolverRegistry,
         new_root: vector<u8>,
@@ -389,7 +390,7 @@ module omneon::intent_rfq {
     // ======== Fee Management ========
 
     /// Set new fee rate (only owner)
-    public fun set_fee_rate(
+    public entry fun set_fee_rate(
         intent_rfq: &mut IntentRFQ,
         new_fee_rate: u64,
         ctx: &mut TxContext

@@ -12,6 +12,12 @@ import { TOKENS, CONTRACTS, ChainType, getTokenAddress } from '@/lib/contracts';
 import { Address } from 'viem';
 import { useRouter } from 'next/navigation';
 
+// SUI imports
+import { useSuiCreateIntentOrder } from '@/lib/sui/useSuiCreateIntentOrder';
+import { useSuiTokenBalances } from '@/lib/sui/useSuiBalances';
+import { SUI_TOKENS, getSuiTokenBySymbol } from '@/lib/sui/contracts';
+import { useCurrentAccount, useSignAndExecuteTransaction } from '@mysten/dapp-kit';
+
 interface TradeIntentBuilderProps {
   showHeader?: boolean;
   className?: string;
@@ -28,6 +34,12 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   const { selectedResolver, isLoading: resolversLoading } = useResolvers();
   const router = useRouter();
   const { createIntentOrder, isSubmitting, state: orderState } = useCreateIntentOrder();
+
+  // SUI wallet and hooks
+  const currentAccount = useCurrentAccount();
+  const { mutate: signAndExecuteTransaction } = useSignAndExecuteTransaction();
+  const { createSuiIntentOrder, isSubmitting: isSuiSubmitting, state: suiOrderState } = useSuiCreateIntentOrder();
+  const { balances: suiBalances } = useSuiTokenBalances(currentAccount?.address || null);
 
   // Core state
   const [mode, setMode] = useState<'same-chain' | 'cross-chain'>('same-chain');
@@ -77,6 +89,10 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
 
   // Get current token balance
   const getCurrentBalance = () => {
+    if (sourceChain === 'SUI') {
+      return suiBalances[sourceToken] || '0.000000';
+    }
+    
     if (sourceToken === 'USDC' && usdcBalance.data) {
       return formatTokenAmount(usdcBalance.data, 6);
     } else if (sourceToken === 'WETH' && wethBalance.data) {
@@ -103,11 +119,11 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
 
   // Chain configurations
   const sameChainNetworks = [
-    { name: 'Ethereum', logo: '⟠' },
+    { name: 'Ethereum Sepolia', logo: '⟠' },
+    { name: 'SUI', logo: '🔷' },
     { name: 'Base', logo: '🔵' },
     { name: 'Polygon', logo: '🟣' },
     { name: 'BNB Chain', logo: '🟡' },
-    { name: 'SUI', logo: '🔷' },
     { name: 'Cronos', logo: '⚫' },
     { name: 'Optimism', logo: '🔴' }
   ];
@@ -117,20 +133,29 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     { name: 'SUI', logo: '🔷' }
   ];
 
-  const tokens = TOKENS.SEPOLIA.map(token => ({
-    name: token.symbol,
-    price: '$1.00',
-    icon: token.icon,
-    balance: token.symbol === 'USDC' && usdcBalance.data
-      ? formatTokenAmount(usdcBalance.data, token.decimals)
-      : token.symbol === 'WETH' && wethBalance.data
-        ? formatTokenAmount(wethBalance.data, token.decimals)
-        : token.symbol === 'WBTC' && wbtcBalance.data
-          ? formatTokenAmount(wbtcBalance.data, token.decimals)
-          : '0.00',
-    address: token.address,
-    decimals: token.decimals
-  }));
+  const tokens = sourceChain === 'SUI' 
+    ? SUI_TOKENS.TESTNET.map(token => ({
+        name: token.symbol,
+        price: '$1.00',
+        icon: token.icon,
+        balance: suiBalances[token.symbol] || '0.000000',
+        address: token.type,
+        decimals: token.decimals
+      }))
+    : TOKENS.SEPOLIA.map(token => ({
+        name: token.symbol,
+        price: '$1.00',
+        icon: token.icon,
+        balance: token.symbol === 'USDC' && usdcBalance.data
+          ? formatTokenAmount(usdcBalance.data, token.decimals)
+          : token.symbol === 'WETH' && wethBalance.data
+            ? formatTokenAmount(wethBalance.data, token.decimals)
+            : token.symbol === 'WBTC' && wbtcBalance.data
+              ? formatTokenAmount(wbtcBalance.data, token.decimals)
+              : '0.00',
+        address: token.address,
+        decimals: token.decimals
+      }));
 
   const availableChains = mode === 'same-chain' ? sameChainNetworks : crossChainNetworks;
 
@@ -139,14 +164,23 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     if (mode === 'same-chain') {
       setTargetChain(sourceChain);
       setCondition(`immediately at market rate`);
+      
+      // Reset tokens when switching to SUI
+      if (sourceChain === 'SUI') {
+        setSourceToken('SUI');
+        setTargetToken('TEST');
+      } else if (sourceChain === 'Ethereum Sepolia') {
+        setSourceToken('USDC');
+        setTargetToken('WETH');
+      }
     } else {
       if (sourceChain === 'SUI') {
-        setTargetChain('Ethereum');
+        setTargetChain('Ethereum Sepolia');
         setSourceToken('SUI');
-        setTargetToken('ETH');
+        setTargetToken('USDC');
       } else {
         setTargetChain('SUI');
-        setSourceToken('ETH');
+        setSourceToken('USDC');
         setTargetToken('SUI');
       }
       setCondition(`immediately at best available cross-chain rate`);
@@ -244,9 +278,16 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     setError(null);
 
     // Validate wallet connection
-    if (!wallets.evm) {
-      setError('Please connect your wallet first');
-      return;
+    if (sourceChain === 'SUI') {
+      if (!currentAccount?.address) {
+        setError('Please connect your SUI wallet first');
+        return;
+      }
+    } else {
+      if (!wallets.evm) {
+        setError('Please connect your wallet first');
+        return;
+      }
     }
 
     // Validate amount
@@ -261,9 +302,6 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
       setError('Source and destination tokens cannot be the same');
       return;
     }
-
-    // Check if approval is needed
-    const approvalNeeded = needsApproval(amount);
 
     // Calculate min amount out with slippage
     const estimatedOutput = parseFloat(rateData.estimatedOutput);
@@ -282,8 +320,8 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
       condition: hasCondition ? condition : undefined,
       estimatedOutput: rateData.estimatedOutput,
       mode,
-      userAddress: wallets.evm,
-      needsApproval: approvalNeeded
+      userAddress: sourceChain === 'SUI' ? currentAccount?.address : wallets.evm,
+      needsApproval: sourceChain === 'SUI' ? false : needsApproval(amount)
     };
 
     setPendingOrderData(orderData);
@@ -296,10 +334,27 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     setShowConfirmModal(false);
 
     try {
-      const result = await createIntentOrder({
-        ...pendingOrderData,
-        needsApproval: pendingOrderData.needsApproval
-      });
+      let result;
+      
+      if (sourceChain === 'SUI') {
+        // Handle SUI order creation
+        result = await createSuiIntentOrder({
+          sourceToken: pendingOrderData.sourceToken,
+          amount: pendingOrderData.amount,
+          destToken: pendingOrderData.destToken,
+          minAmountOut: pendingOrderData.minAmountOut,
+          slippage: pendingOrderData.slippage,
+          deadline: pendingOrderData.deadline,
+          condition: pendingOrderData.condition,
+          userAddress: pendingOrderData.userAddress
+        }, signAndExecuteTransaction);
+      } else {
+        // Handle EVM order creation
+        result = await createIntentOrder({
+          ...pendingOrderData,
+          needsApproval: pendingOrderData.needsApproval
+        });
+      }
 
       if (result.success) {
         setSuccessMessage(`Order created successfully! ID: ${result.intentId?.slice(0, 8)}...`);
@@ -364,28 +419,28 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
           </AnimatePresence>
 
           {/* Order State Indicator */}
-          {orderState !== 'idle' && (
+          {(orderState !== 'idle' || suiOrderState !== 'idle') && (
             <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-6">
               <div className="flex items-center gap-3">
-                {orderState === 'checking' && (
+                {((orderState === 'checking' || suiOrderState === 'checking')) && (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400" />
-                    <span className="text-blue-400">Checking allowance...</span>
+                    <span className="text-blue-400">Checking {sourceChain === 'SUI' ? 'SUI wallet' : 'allowance'}...</span>
                   </>
                 )}
-                {orderState === 'approving' && (
+                {((orderState === 'approving')) && (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400" />
                     <span className="text-blue-400">Approving token spend...</span>
                   </>
                 )}
-                {orderState === 'creating' && (
+                {((orderState === 'creating' || suiOrderState === 'creating')) && (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400" />
-                    <span className="text-blue-400">Creating order on blockchain...</span>
+                    <span className="text-blue-400">Creating order on {sourceChain === 'SUI' ? 'SUI' : 'blockchain'}...</span>
                   </>
                 )}
-                {orderState === 'success' && (
+                {((orderState === 'success' || suiOrderState === 'success')) && (
                   <>
                     <CheckCircle className="text-green-400" size={20} />
                     <span className="text-green-400">Order created successfully!</span>
@@ -601,16 +656,16 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
           <div className="text-center">
             <motion.button
               className={`bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 mx-auto ${
-                isSubmitting || orderState !== 'idle' || (sourceToken === targetToken && sourceChain === targetChain)
+                isSubmitting || isSuiSubmitting || orderState !== 'idle' || suiOrderState !== 'idle' || (sourceToken === targetToken && sourceChain === targetChain)
                   ? 'opacity-50 cursor-not-allowed' 
                   : ''
               }`}
-              whileHover={!isSubmitting && orderState === 'idle' && !(sourceToken === targetToken && sourceChain === targetChain) ? { scale: 1.05, y: -2 } : {}}
-              whileTap={!isSubmitting && orderState === 'idle' && !(sourceToken === targetToken && sourceChain === targetChain) ? { scale: 0.95 } : {}}
+              whileHover={!isSubmitting && !isSuiSubmitting && orderState === 'idle' && suiOrderState === 'idle' && !(sourceToken === targetToken && sourceChain === targetChain) ? { scale: 1.05, y: -2 } : {}}
+              whileTap={!isSubmitting && !isSuiSubmitting && orderState === 'idle' && suiOrderState === 'idle' && !(sourceToken === targetToken && sourceChain === targetChain) ? { scale: 0.95 } : {}}
               onClick={handleCreateIntent}
-              disabled={isSubmitting || orderState !== 'idle' || (sourceToken === targetToken && sourceChain === targetChain)}
+              disabled={isSubmitting || isSuiSubmitting || orderState !== 'idle' || suiOrderState !== 'idle' || (sourceToken === targetToken && sourceChain === targetChain)}
             >
-              {isSubmitting || orderState !== 'idle' ? (
+              {isSubmitting || isSuiSubmitting || orderState !== 'idle' || suiOrderState !== 'idle' ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
                   Processing...
@@ -622,10 +677,10 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                 </>
               ) : (
                 <>
-                  {needsApproval(amount || '0') ? 'Approve & Create Order' : 'Create Intent Order'}
+                  {sourceChain === 'SUI' ? 'Create SUI Intent Order' : (needsApproval(amount || '0') ? 'Approve & Create Order' : 'Create Intent Order')}
                   <ArrowRight size={20} />
                 </>
-              )}
+              )}  
             </motion.button>
             <p className="text-slate-400 text-sm mt-3">
               {mode === 'cross-chain' ? 'Cross-chain bridging' : 'Same-chain swapping'} • 0.3% protocol fee • Cancel anytime before execution
@@ -724,13 +779,23 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                   </div>
                 </div>
 
-                {(pendingOrderData as any).needsApproval && (
+                {(pendingOrderData as any).needsApproval && sourceChain !== 'SUI' && (
                   <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
                     <div className="flex items-center gap-2 text-yellow-400 text-sm mb-1">
                       <AlertCircle size={16} />
                       Token Approval Required
                     </div>
                     <div className="text-white text-sm">This transaction will first approve token spending, then create the order.</div>
+                  </div>
+                )}
+
+                {sourceChain === 'SUI' && (
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-blue-400 text-sm mb-1">
+                      <Info size={16} />
+                      SUI Network Transaction
+                    </div>
+                    <div className="text-white text-sm">This transaction will be executed on the SUI network using your connected SUI wallet.</div>
                   </div>
                 )}
 

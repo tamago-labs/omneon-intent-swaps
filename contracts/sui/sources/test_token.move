@@ -40,7 +40,7 @@ module omneon::test_token {
     }
 
     /// Mint new TEST_TOKEN coins
-    public fun mint(
+    public entry fun mint(
         cap: &mut TestTokenCap,
         amount: u64,
         recipient: address,
@@ -51,7 +51,7 @@ module omneon::test_token {
     }
 
     /// Burn TEST_TOKEN coins
-    public fun burn(
+    public entry fun burn(
         cap: &mut TestTokenCap,
         coin: coin::Coin<TEST_TOKEN>
     ) {

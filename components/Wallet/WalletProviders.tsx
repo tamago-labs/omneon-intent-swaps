@@ -28,7 +28,7 @@ const WalletProviders = ({ children }: WalletProvidersProps) => {
   return (
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={wagmiConfig}>
-        <SuiClientProvider networks={suiNetworks} defaultNetwork="mainnet">
+        <SuiClientProvider networks={suiNetworks} defaultNetwork="testnet">
           <WalletProvider>
             <WalletTypeProvider>
               {children}
