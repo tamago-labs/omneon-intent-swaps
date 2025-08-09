@@ -245,6 +245,8 @@ export function useSuiCreateIntentOrder() {
       intentId: data.intentId,
       userId: user.id,
       resolverId: resolver.id,
+      senderAddress: data.userAddress.toLowerCase(), // CRITICAL: For refunds
+      recipientAddress: data.userAddress.toLowerCase(), // CRITICAL: For successful transfers
       sourceChainType: 1, // SUI
       sourceChainId: 0,
       sourceTokenAddress: data.sourceTokenInfo.type,

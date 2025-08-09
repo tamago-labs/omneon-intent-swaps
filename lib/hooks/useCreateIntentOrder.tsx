@@ -101,6 +101,8 @@ export function useCreateIntentOrder() {
         intentId: result.intentId!,
         userId: user.id, // Use the user ID from the created/retrieved user
         resolverId: resolver.id, // Use the resolver ID
+        senderAddress: userAddress.toLowerCase(), // CRITICAL: For refunds
+        recipientAddress: userAddress.toLowerCase(), // CRITICAL: For successful transfers
         sourceChainType: getChainType(params.sourceChain),
         sourceChainId: getChainId(params.sourceChain),
         sourceTokenAddress: sourceTokenAddress.toLowerCase(),
