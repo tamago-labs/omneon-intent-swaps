@@ -82,6 +82,7 @@ export function useCreateIntentOrder() {
         getChainId(params.sourceChain)
       );
       console.log('User record:', user);
+      console.log('User ID will be:', user.id);
 
       // Check if resolver exists, get the first one from the list
       console.log('Getting first resolver from list...');

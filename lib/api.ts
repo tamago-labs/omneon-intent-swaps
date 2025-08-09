@@ -426,6 +426,11 @@ export const analyticsAPI = {
 
 // Utility functions
 export const utils = {
+  // Generate consistent user ID
+  generateUserId(address: string, chainType: number): string {
+    return `${address.toLowerCase()}_${chainType}`;
+  },
+
   // Format amount with proper decimals
   formatAmount(amount: string, decimals: number = 18): string {
     try {

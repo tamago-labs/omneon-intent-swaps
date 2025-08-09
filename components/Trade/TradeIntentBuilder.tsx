@@ -517,13 +517,13 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                 >
                   <span className="text-sm">Cross Chain</span>
                 </button>
-                <button
+                {/* <button
                   onClick={() => openModal('settings')}
                   className="bg-slate-700/80 hover:bg-slate-600 text-slate-300 hover:text-white p-2 rounded-lg transition-all duration-200 flex items-center gap-2"
                 >
                   <Settings size={16} />
                   <span className="text-sm">Settings</span>
-                </button>
+                </button> */}
               </div>
             </div>
 
