@@ -1,4 +1,5 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
+import { resolverScheduler } from "../functions/resolver/resource"
 
 const schema = a.schema({
   Resolver: a
@@ -82,7 +83,9 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.publicApiKey()
     ]),
-});
+}).authorization((allow) => [
+  allow.resource(resolverScheduler)
+]);
 
 export type Schema = ClientSchema<typeof schema>;
 
