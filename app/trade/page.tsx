@@ -6,6 +6,7 @@ import { TrendingUp, Clock, Shield, Zap, AlertCircle, Info, Activity } from 'luc
 import TradeIntentBuilder from '@/components/Trade/TradeIntentBuilder';
 
 const TradePage = () => {
+  
   const [showPreview, setShowPreview] = useState(false);
   const [intentData, setIntentData] = useState(null);
 
