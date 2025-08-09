@@ -88,7 +88,7 @@ const ConnectWallet = () => {
 
   const getButtonColor = () => {
     if (connectedCount === 0) return 'from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700'
-    if (connectedCount === 1) return 'from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700'
+    if (connectedCount === 1) return 'from-pink-500 to-fuchsia-600 hover:from-pink-600 hover:to-fuchsia-700'
     return 'from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
   }
 
