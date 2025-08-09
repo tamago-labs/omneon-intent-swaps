@@ -91,6 +91,39 @@ export interface User {
 
 // Resolver API 
 export const resolverAPI = {
+  // Get resolver by ID
+  async getResolver(id: string) {
+    try {
+      const { data: resolver } = await client.models.Resolver.get({ id });
+      if (!resolver) {
+        throw new Error('Resolver not found');
+      }
+      return resolver as any;
+    } catch (error) {
+      console.error('Error fetching resolver:', error);
+      throw error;
+    }
+  },
+
+  // Create resolver
+  async createResolver(resolverData: any) {
+    try {
+      console.log('Creating resolver with data:', resolverData);
+      const { data: resolver, errors } = await client.models.Resolver.create(resolverData);
+      
+      if (errors) {
+        console.error('GraphQL errors during resolver creation:', errors);
+        throw new Error(`Database error: ${errors.map(e => e.message).join(', ')}`);
+      }
+      
+      console.log('Resolver created successfully:', resolver);
+      return resolver as any;
+    } catch (error) {
+      console.error('Error creating resolver:', error);
+      throw error;
+    }
+  },
+
   // Get all resolvers
   async getAllResolvers() {
     try {
@@ -206,12 +239,18 @@ export const orderAPI = {
   },
 
   // Create order
-  async createOrder(orderData: Partial<Order>) {
+  async createOrder(orderData: any) {
     try {
-      const { data: order } = await client.models.Order.create({
-        id: orderData.intentId,
-        ...orderData
-      } as any);
+      console.log('Creating order in database with data:', orderData);
+      
+      const { data: order, errors } = await client.models.Order.create(orderData);
+      
+      if (errors) {
+        console.error('GraphQL errors during order creation:', errors);
+        throw new Error(`Database error: ${errors.map(e => e.message).join(', ')}`);
+      }
+      
+      console.log('Order created successfully in database:', order);
       return order as any;
     } catch (error) {
       console.error('Error creating order:', error);

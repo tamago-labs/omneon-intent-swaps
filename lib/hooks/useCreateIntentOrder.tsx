@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { Address } from 'viem';
 import { useIntentOrderCreation } from './useContracts';
-import { orderAPI, resolverAPI } from '@/lib/api';
+import { orderAPI, resolverAPI, userAPI} from '@/lib/api';
 import { getTokenAddress, getChainId, getChainType, parseTokenAmount } from '@/lib/contracts';
 import { useResolvers } from './useResolvers';
 
@@ -17,6 +17,7 @@ interface CreateIntentOrderParams {
   slippage: string;
   deadline: string;
   condition?: string;
+  needsApproval?: boolean;
 }
 
 export function useCreateIntentOrder() {
@@ -30,9 +31,8 @@ export function useCreateIntentOrder() {
       throw new Error('Wallet not connected');
     }
 
-    if (!selectedResolver) {
-      throw new Error('No resolver selected');
-    }
+    // Use hardcoded resolver address for now
+    const resolverAddress = "0x91C65f404714Ac389b38335CccA4A876a8669d32";
 
     setIsSubmitting(true);
 
@@ -53,7 +53,7 @@ export function useCreateIntentOrder() {
       const minAmountOut = (expectedOutput * slippageMultiplier).toString();
 
       // Step 1: Submit to smart contract
-      const result = await submitOrder({
+      const result: any = await submitOrder({
         sourceChain: params.sourceChain,
         sourceToken: params.sourceToken,
         sourceTokenAddress: sourceTokenAddress as Address,
@@ -63,42 +63,73 @@ export function useCreateIntentOrder() {
         destToken: params.destToken,
         destTokenAddress: destTokenAddress as Address,
         minAmountOut,
-        resolver: selectedResolver.address as Address
+        resolver: resolverAddress as Address,
+        needsApproval: params.needsApproval
       });
 
       if (!result.success) {
         throw new Error(result.error || 'Failed to create order on blockchain');
       }
 
-      // Step 2: Save to database after successful blockchain transaction
+      console.log('Blockchain transaction successful, saving to database...');
+      console.log('Result from blockchain:', result);
+
+      // Step 2: Ensure user and resolver records exist
+      console.log('Ensuring user record exists...');
+      const user = await userAPI.getOrCreateUser(
+        userAddress.toLowerCase(), 
+        getChainType(params.sourceChain),
+        getChainId(params.sourceChain)
+      );
+      console.log('User record:', user);
+
+      // Check if resolver exists, get the first one from the list
+      console.log('Getting first resolver from list...');
+      const resolvers = await resolverAPI.getAllResolvers();
+      
+      if (!resolvers || resolvers.length === 0) {
+        throw new Error('No resolvers available in the system');
+      }
+      
+      const resolver = resolvers[0]; // Use the first resolver
+      console.log('Using resolver:', resolver);
+
+      // Step 3: Save order to database
       const orderData = {
+        id: result.intentId!, // Use intentId as the primary ID
         intentId: result.intentId!,
-        userAddress: userAddress.toLowerCase(),
-        resolverAddress: selectedResolver.address.toLowerCase(),
-        sourceChainType: getChainType(params.sourceChain).toString(),
+        userId: user.id, // Use the user ID from the created/retrieved user
+        resolverId: resolver.id, // Use the resolver ID
+        sourceChainType: getChainType(params.sourceChain),
         sourceChainId: getChainId(params.sourceChain),
         sourceTokenAddress: sourceTokenAddress.toLowerCase(),
         sourceTokenSymbol: params.sourceToken,
         sourceTokenDecimals,
         amountIn: parseTokenAmount(params.amount, sourceTokenDecimals).toString(),
-        destChainType: getChainType(params.destChain).toString(),
+        destChainType: getChainType(params.destChain),
         destChainId: getChainId(params.destChain),
         destTokenAddress: destTokenAddress.toLowerCase(),
         destTokenSymbol: params.destToken,
         destTokenDecimals,
         minAmountOut: parseTokenAmount(minAmountOut, destTokenDecimals).toString(),
-        status: 'PENDING',
+        status: 'PENDING' as const,
         txHashSource: result.txHash,
         blockNumberSource: 0, // Will be updated when transaction is mined
-        createdAt: new Date().toISOString(),
         expiresAt: new Date(Date.now() + parseInt(params.deadline) * 60 * 1000).toISOString(),
-        retryCount: 0
+        retryCount: 0,
+        // Only include executionCondition if there's a condition, and stringify it
+        ...(params.condition && {
+          executionCondition: JSON.stringify({ condition: params.condition })
+        })
       };
 
-      const savedOrder = await orderAPI.createOrder(orderData);
+      console.log('Order data to save:', orderData);
 
-      // Step 3: Update resolver metrics
-      // await resolverAPI.getResolverMetrics(selectedResolver.address);
+      const savedOrder = await orderAPI.createOrder(orderData);
+      console.log('Order saved successfully:', savedOrder);
+
+      // Step 4: Update resolver metrics
+      // await resolverAPI.getResolverMetrics(resolverAddress);
 
       return {
         success: true,
@@ -109,7 +140,15 @@ export function useCreateIntentOrder() {
 
     } catch (error: any) {
       console.error('Error creating intent order:', error);
-      throw error;
+      
+      // More specific error handling
+      if (error.message?.includes('Database error')) {
+        throw new Error(`Failed to save order to database: ${error.message}`);
+      } else if (error.message?.includes('Failed to create order on blockchain')) {
+        throw new Error(`Blockchain transaction failed: ${error.message}`);
+      } else {
+        throw new Error(`Order creation failed: ${error.message || 'Unknown error'}`);
+      }
     } finally {
       setIsSubmitting(false);
     }

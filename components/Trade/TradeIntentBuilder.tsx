@@ -2,8 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, TrendingUp, Zap, Clock, ArrowRight, Shield, Settings, Info } from 'lucide-react';
+import { X, TrendingUp, Zap, Clock, ArrowRight, Shield, Settings, Info, AlertCircle, CheckCircle, Wallet } from 'lucide-react';
 import { orderAPI } from '@/lib/api';
+import { useWalletType } from '@/lib/wallet-type-context';
+import { useResolvers } from '@/lib/hooks/useResolvers';
+import { useTokenBalance, useTokenAllowance, useFeeCalculation, useTokenApproval, useCreateOrder, formatTokenAmount, parseTokenAmount, checkNeedsApproval } from '@/lib/hooks/useContracts';
+import { useCreateIntentOrder } from '@/lib/hooks/useCreateIntentOrder';
+import { TOKENS, CONTRACTS, ChainType, getTokenAddress } from '@/lib/contracts';
+import { Address } from 'viem';
+import { useRouter } from 'next/navigation';
 
 interface TradeIntentBuilderProps {
   showHeader?: boolean;
@@ -16,13 +23,19 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   className = "",
   onCreateIntent
 }) => {
+  // Wallet and user context
+  const { wallets } = useWalletType();
+  const { selectedResolver, isLoading: resolversLoading } = useResolvers();
+  const router = useRouter();
+  const { createIntentOrder, isSubmitting, state: orderState } = useCreateIntentOrder();
+
   // Core state
   const [mode, setMode] = useState<'same-chain' | 'cross-chain'>('same-chain');
   const [amount, setAmount] = useState('100');
-  const [sourceToken, setSourceToken] = useState('SUI');
-  const [sourceChain, setSourceChain] = useState('SUI');
-  const [targetToken, setTargetToken] = useState('USDC');
-  const [targetChain, setTargetChain] = useState('SUI');
+  const [sourceToken, setSourceToken] = useState('USDC');
+  const [sourceChain, setSourceChain] = useState('Ethereum Sepolia');
+  const [targetToken, setTargetToken] = useState('WETH');
+  const [targetChain, setTargetChain] = useState('Ethereum Sepolia');
 
   // Advanced settings
   const [slippage, setSlippage] = useState('0.5');
@@ -34,6 +47,59 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
   const [tempValue, setTempValue] = useState('');
+  const [showBalanceModal, setShowBalanceModal] = useState(false);
+
+  // Error and success states
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingOrderData, setPendingOrderData] = useState<any>(null);
+
+  // Get token info
+  const sourceTokenInfo = TOKENS.SEPOLIA.find(t => t.symbol === sourceToken);
+  const targetTokenInfo = TOKENS.SEPOLIA.find(t => t.symbol === targetToken);
+
+  // Contract hooks - get all token balances
+  const usdcBalance = useTokenBalance(
+    CONTRACTS.SEPOLIA.MockUSDC,
+    wallets.evm as Address
+  );
+
+  const wethBalance = useTokenBalance(
+    CONTRACTS.SEPOLIA.MockWETH,
+    wallets.evm as Address
+  );
+
+  const wbtcBalance = useTokenBalance(
+    CONTRACTS.SEPOLIA.MockWBTC,
+    wallets.evm as Address
+  );
+
+  // Get current token balance
+  const getCurrentBalance = () => {
+    if (sourceToken === 'USDC' && usdcBalance.data) {
+      return formatTokenAmount(usdcBalance.data, 6);
+    } else if (sourceToken === 'WETH' && wethBalance.data) {
+      return formatTokenAmount(wethBalance.data, 18);
+    } else if (sourceToken === 'WBTC' && wbtcBalance.data) {
+      return formatTokenAmount(wbtcBalance.data, 8);
+    }
+    return '0.00';
+  };
+
+  const { data: allowance } = useTokenAllowance(
+    sourceTokenInfo?.address as Address,
+    wallets.evm as Address,
+    CONTRACTS.SEPOLIA.IntentRFQ
+  );
+
+  // Helper function to safely check approval
+  const needsApproval = (amount: string) => {
+    if (!sourceTokenInfo || !allowance) return true;
+    const amountInWei = parseTokenAmount(amount, sourceTokenInfo.decimals);
+    return checkNeedsApproval(allowance as bigint, amountInWei);
+  };
+
 
   // Chain configurations
   const sameChainNetworks = [
@@ -51,16 +117,20 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     { name: 'SUI', logo: '🔷' }
   ];
 
-  const tokens = [
-    { name: 'SUI', price: '$2.45', icon: '🔷', balance: '250.00' },
-    { name: 'USDC', price: '$1.00', icon: '💚', balance: '1,250.00' },
-    { name: 'ETH', price: '$3,240', icon: '⟠', balance: '0.75' },
-    { name: 'USDT', price: '$1.00', icon: '💛', balance: '500.00' },
-    { name: 'WBTC', price: '$67,450', icon: '🟠', balance: '0.01' },
-    { name: 'MATIC', price: '$0.85', icon: '🟣', balance: '500.00' },
-    { name: 'BNB', price: '$590', icon: '🟡', balance: '2.50' },
-    { name: 'OP', price: '$2.80', icon: '🔴', balance: '100.00' }
-  ];
+  const tokens = TOKENS.SEPOLIA.map(token => ({
+    name: token.symbol,
+    price: '$1.00',
+    icon: token.icon,
+    balance: token.symbol === 'USDC' && usdcBalance.data
+      ? formatTokenAmount(usdcBalance.data, token.decimals)
+      : token.symbol === 'WETH' && wethBalance.data
+        ? formatTokenAmount(wethBalance.data, token.decimals)
+        : token.symbol === 'WBTC' && wbtcBalance.data
+          ? formatTokenAmount(wbtcBalance.data, token.decimals)
+          : '0.00',
+    address: token.address,
+    decimals: token.decimals
+  }));
 
   const availableChains = mode === 'same-chain' ? sameChainNetworks : crossChainNetworks;
 
@@ -68,7 +138,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   useEffect(() => {
     if (mode === 'same-chain') {
       setTargetChain(sourceChain);
-      setCondition(`immediately at market rate with ${slippage}% slippage, expires in ${deadline} minutes`);
+      setCondition(`immediately at market rate`);
     } else {
       if (sourceChain === 'SUI') {
         setTargetChain('Ethereum');
@@ -79,9 +149,25 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
         setSourceToken('ETH');
         setTargetToken('SUI');
       }
-      setCondition(`when bridge rate is favorable with ${slippage}% slippage, complete within ${deadline} minutes`);
+      setCondition(`immediately at best available cross-chain rate`);
     }
   }, [mode, sourceChain, slippage, deadline]);
+
+  // Clear errors after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // Clear success message after 5 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
 
   const conditionTemplates = mode === 'same-chain' ? [
     `immediately at market rate`,
@@ -153,29 +239,87 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     setTempValue(value);
   };
 
+
   const handleCreateIntent = async () => {
-    const intentData = {
-      amount,
-      sourceToken,
+    setError(null);
+
+    // Validate wallet connection
+    if (!wallets.evm) {
+      setError('Please connect your wallet first');
+      return;
+    }
+
+    // Validate amount
+    const balance = getCurrentBalance();
+    if (parseFloat(amount) > parseFloat(balance)) {
+      setError(`Insufficient balance. You have ${balance} ${sourceToken}`);
+      return;
+    }
+
+    // Validate that source and destination tokens are different
+    if (sourceToken === targetToken && sourceChain === targetChain) {
+      setError('Source and destination tokens cannot be the same');
+      return;
+    }
+
+    // Check if approval is needed
+    const approvalNeeded = needsApproval(amount);
+
+    // Calculate min amount out with slippage
+    const estimatedOutput = parseFloat(rateData.estimatedOutput);
+    const slippageMultiplier = 1 - (parseFloat(slippage) / 100);
+    const minAmountOut = (estimatedOutput * slippageMultiplier).toString();
+
+    const orderData = {
       sourceChain,
-      targetToken,
-      targetChain,
-      condition: hasCondition ? condition : null,
+      sourceToken,
+      amount,
+      destChain: mode === 'same-chain' ? sourceChain : targetChain,
+      destToken: targetToken,
+      minAmountOut,
+      slippage,
+      deadline,
+      condition: hasCondition ? condition : undefined,
       estimatedOutput: rateData.estimatedOutput,
       mode,
-      slippage,
-      deadline
+      userAddress: wallets.evm,
+      needsApproval: approvalNeeded
     };
 
-    if (onCreateIntent) {
-      onCreateIntent(intentData);
+    setPendingOrderData(orderData);
+    setShowConfirmModal(true);
+  };
+
+  const confirmCreateOrder = async () => {
+    if (!pendingOrderData) return;
+
+    setShowConfirmModal(false);
+
+    try {
+      const result = await createIntentOrder({
+        ...pendingOrderData,
+        needsApproval: pendingOrderData.needsApproval
+      });
+
+      if (result.success) {
+        setSuccessMessage(`Order created successfully! ID: ${result.intentId?.slice(0, 8)}...`);
+
+        // Redirect to orders page after 2 seconds
+        setTimeout(() => {
+          router.push('/orders');
+        }, 2000);
+      }
+    } catch (error: any) {
+      console.error('Error creating order:', error);
+      setError(error.message || 'Failed to create order');
+    } finally {
+      setPendingOrderData(null);
     }
   };
 
   return (
     <div className={`w-full ${className}`}>
-      <div className=" mx-auto">
-
+      <div className="mx-auto">
         {/* Main Intent Builder */}
         <motion.div
           className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-8"
@@ -183,8 +327,88 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          {/* Large Intent Display - Using Original Natural Format */}
-          <div className="bg-slate-900/50 rounded-xl p-8 mb-8 pt-16 border border-slate-600/30 relative group">
+          {/* Error Alert */}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 mb-6 flex items-center gap-3"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <AlertCircle className="text-red-400" size={20} />
+                <span className="text-red-400 flex-1">{error}</span>
+                <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300">
+                  <X size={20} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Success Alert */}
+          <AnimatePresence>
+            {successMessage && (
+              <motion.div
+                className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mb-6 flex items-center gap-3"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <CheckCircle className="text-green-400" size={20} />
+                <span className="text-green-400 flex-1">{successMessage}</span>
+                <button onClick={() => setSuccessMessage(null)} className="text-green-400 hover:text-green-300">
+                  <X size={20} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Order State Indicator */}
+          {orderState !== 'idle' && (
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-3">
+                {orderState === 'checking' && (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400" />
+                    <span className="text-blue-400">Checking allowance...</span>
+                  </>
+                )}
+                {orderState === 'approving' && (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400" />
+                    <span className="text-blue-400">Approving token spend...</span>
+                  </>
+                )}
+                {orderState === 'creating' && (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400" />
+                    <span className="text-blue-400">Creating order on blockchain...</span>
+                  </>
+                )}
+                {orderState === 'success' && (
+                  <>
+                    <CheckCircle className="text-green-400" size={20} />
+                    <span className="text-green-400">Order created successfully!</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Large Intent Display */}
+          <div className={`bg-slate-900/50 rounded-xl p-8 mb-8 pt-20 border relative group ${
+            sourceToken === targetToken && sourceChain === targetChain 
+              ? 'border-red-500/50 bg-red-500/5' 
+              : 'border-slate-600/30'
+          }`}>
+            {/* Same token warning */}
+            {sourceToken === targetToken && sourceChain === targetChain && (
+              <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-500/20 border border-red-500/50 rounded-lg px-3 py-1 flex items-center gap-2">
+                <AlertCircle className="text-red-400" size={16} />
+                <span className="text-red-400 text-sm">Source and destination cannot be the same</span>
+              </div>
+            )}
+
             <div className="text-2xl md:text-3xl lg:text-4xl font-medium text-white leading-relaxed text-center">
               <span className="text-slate-300">Swap </span>
               <motion.button
@@ -277,7 +501,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
               <div className='flex flex-row space-x-1.5'>
                 <button
                   onClick={() => setMode('same-chain')}
-                  className={`flex-1 w-[120px]  p-2 rounded-lg transition-all duration-200 ${mode === 'same-chain'
+                  className={`flex-1 w-[120px] p-2 rounded-lg transition-all duration-200 ${mode === 'same-chain'
                     ? 'bg-blue-500 text-white shadow-lg'
                     : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
                     }`}
@@ -301,7 +525,6 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                   <span className="text-sm">Settings</span>
                 </button>
               </div>
-
             </div>
 
             {/* Hover hint */}
@@ -311,21 +534,25 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
               </div>
             </div>
           </div>
-          
-          {/* Rate Information */}
+
+          {/* Rate Information with Balance Box */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-slate-700/30 rounded-lg p-4">
-              <div className="text-slate-400 text-sm mb-1">Current Rate</div>
+            {/* Balance Box */}
+            {/* <motion.div
+              className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 rounded-lg p-4 border border-blue-500/30 cursor-pointer hover:border-blue-400/50 transition-all"
+              onClick={() => setShowBalanceModal(true)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="text-slate-400 text-sm mb-1 flex items-center gap-1">
+                <Wallet size={14} />
+                Your Balance
+              </div>
               <div className="text-xl font-bold text-white">
-                1 {sourceToken} = {mode === 'cross-chain' && sourceToken === 'SUI' ? '1,322.45' :
-                  mode === 'cross-chain' && sourceToken === 'ETH' ? '0.000756' : '2.45'} {targetToken}
+                {getCurrentBalance()} {sourceToken}
               </div>
-              <div className={`text-sm flex items-center gap-1 ${parseFloat(rateData.priceChange) > 0 ? 'text-green-400' : 'text-red-400'
-                }`}>
-                <TrendingUp size={14} />
-                {rateData.priceChange}% (24h)
-              </div>
-            </div>
+              <div className="text-blue-400 text-sm">Click for all balances</div>
+            </motion.div> */}
 
             <div className="bg-slate-700/30 rounded-lg p-4">
               <div className="text-slate-400 text-sm mb-1">You'll Receive</div>
@@ -342,22 +569,22 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
               </div>
             </div>
 
-            <div className="bg-slate-700/30 rounded-lg p-4">
+            {/* <div className="bg-slate-700/30 rounded-lg p-4">
               <div className="text-slate-400 text-sm mb-1">Total Fee</div>
               <div className="text-xl font-bold text-white">${rateData.networkFee}</div>
               <div className="text-green-400 text-sm flex items-center gap-1">
                 <Shield size={14} />
-                Resolver + network
+                0.3% + network
               </div>
-            </div>
+            </div> */}
           </div>
 
           {/* Additional Details */}
           <div className="bg-slate-700/20 rounded-lg p-4 mb-8">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-400">24h Volume:</span>
-                <span className="text-white">{rateData.volume24h}</span>
+                <span className="text-slate-400">Current Rate:</span>
+                <span className="text-white">1 {sourceToken} = {rateData.currentRate} {targetToken}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Max Slippage:</span>
@@ -373,23 +600,194 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
           {/* Create Order Button */}
           <div className="text-center">
             <motion.button
-              className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 mx-auto"
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
+              className={`bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 mx-auto ${
+                isSubmitting || orderState !== 'idle' || (sourceToken === targetToken && sourceChain === targetChain)
+                  ? 'opacity-50 cursor-not-allowed' 
+                  : ''
+              }`}
+              whileHover={!isSubmitting && orderState === 'idle' && !(sourceToken === targetToken && sourceChain === targetChain) ? { scale: 1.05, y: -2 } : {}}
+              whileTap={!isSubmitting && orderState === 'idle' && !(sourceToken === targetToken && sourceChain === targetChain) ? { scale: 0.95 } : {}}
               onClick={handleCreateIntent}
+              disabled={isSubmitting || orderState !== 'idle' || (sourceToken === targetToken && sourceChain === targetChain)}
             >
-              Create Intent Order
-              <ArrowRight size={20} />
+              {isSubmitting || orderState !== 'idle' ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                  Processing...
+                </>
+              ) : sourceToken === targetToken && sourceChain === targetChain ? (
+                <>
+                  <AlertCircle size={20} />
+                  Cannot swap same tokens
+                </>
+              ) : (
+                <>
+                  {needsApproval(amount || '0') ? 'Approve & Create Order' : 'Create Intent Order'}
+                  <ArrowRight size={20} />
+                </>
+              )}
             </motion.button>
             <p className="text-slate-400 text-sm mt-3">
-              Intent executed by trusted resolvers • {mode === 'cross-chain' ? 'Cross-chain bridging' : 'Same-chain swapping'} • Cancel anytime before execution
+              {mode === 'cross-chain' ? 'Cross-chain bridging' : 'Same-chain swapping'} • 0.3% protocol fee • Cancel anytime before execution
             </p>
           </div>
         </motion.div>
       </div>
 
-      {/* Modal */}
+      {/* Token Balance Modal */}
       <AnimatePresence>
+        {showBalanceModal && (
+          <motion.div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowBalanceModal(false)}
+          >
+            <motion.div
+              className="bg-slate-800 rounded-2xl border border-slate-600 p-6 max-w-md w-full shadow-2xl"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h4 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <Wallet size={24} />
+                  Token Balances
+                </h4>
+                <button
+                  onClick={() => setShowBalanceModal(false)}
+                  className="text-slate-400 hover:text-white transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="text-slate-400 text-sm mb-3">
+                  {sourceChain} Tokens
+                </div>
+                {tokens.map((token) => (
+                  <div
+                    key={token.name}
+                    className="bg-slate-700/50 rounded-lg p-4 flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">{token.icon}</span>
+                      <div>
+                        <div className="font-medium text-white">{token.name}</div>
+                        <div className="text-sm text-slate-400">{token.price}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-medium text-white">{token.balance}</div>
+                      <div className="text-sm text-slate-400">
+                        {token.balance === '0.00' ? 'No balance' : 'Available'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+        {showConfirmModal && pendingOrderData && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              className="bg-slate-800 rounded-2xl border border-slate-600 p-6 max-w-md w-full shadow-2xl"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+            >
+              <h3 className="text-xl font-bold text-white mb-4">Preview Intent Order</h3>
+
+              <div className="space-y-4 mb-6">
+                <div className="bg-slate-700/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-2">You're Trading</div>
+                  <div className="text-white font-medium">
+                    {(pendingOrderData as any).amount} {(pendingOrderData as any).sourceToken} on {(pendingOrderData as any).sourceChain}
+                  </div>
+                </div>
+
+                <div className="bg-slate-700/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-2">You'll Receive</div>
+                  <div className="text-white font-medium">
+                    ≈ {(pendingOrderData as any).estimatedOutput} {(pendingOrderData as any).targetToken}
+                    {(pendingOrderData as any).mode === 'cross-chain' && ` on ${(pendingOrderData as any).targetChain}`}
+                  </div>
+                </div>
+
+                <div className="bg-slate-700/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-2">Execution Type</div>
+                  <div className="text-white font-medium">
+                    {(pendingOrderData as any).mode === 'cross-chain' ? 'Cross-Chain Bridge' : 'Same-Chain Swap'}
+                  </div>
+                </div>
+
+                {(pendingOrderData as any).needsApproval && (
+                  <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-yellow-400 text-sm mb-1">
+                      <AlertCircle size={16} />
+                      Token Approval Required
+                    </div>
+                    <div className="text-white text-sm">This transaction will first approve token spending, then create the order.</div>
+                  </div>
+                )}
+
+                {(pendingOrderData as any).condition && (
+                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                    <div className="flex items-center gap-2 text-blue-400 text-sm mb-1">
+                      <Info size={16} />
+                      Execution Condition
+                    </div>
+                    <div className="text-white">{(pendingOrderData as any).condition}</div>
+                  </div>
+                )}
+
+                <div className="bg-slate-700/50 rounded-lg p-4">
+                  <div className="text-slate-400 text-sm mb-2">Transaction Details</div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Resolver Fee:</span>
+                      <span className="text-white">0.3%</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Network Fee:</span>
+                      <span className="text-white">
+                        ${(pendingOrderData as any).mode === 'cross-chain' ? '12.50' : '2.50'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Est. Time:</span>
+                      <span className="text-white">
+                        {(pendingOrderData as any).mode === 'cross-chain' ? '2-5 minutes' : '~30 seconds'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Max Slippage:</span>
+                      <span className="text-white">{(pendingOrderData as any).slippage}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-lg transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={confirmCreateOrder}
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg transition-colors"
+                >
+                  Submit Intent
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
         {showModal && (
           <motion.div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
@@ -582,9 +980,14 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
             </motion.div>
           </motion.div>
         )}
+
+
       </AnimatePresence>
     </div>
   );
 };
 
-export default TradeIntentBuilder;
+export default TradeIntentBuilder
+
+
+

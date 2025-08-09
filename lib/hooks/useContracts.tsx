@@ -166,15 +166,62 @@ export function useIntentOrderCreation() {
   const [error, setError] = useState<string | null>(null);
   const [intentId, setIntentId] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [pendingResolve, setPendingResolve] = useState<((value: any) => void) | null>(null);
+  const [pendingApprovalResolve, setPendingApprovalResolve] = useState<((value: any) => void) | null>(null);
 
-  const { approve, hash: approvalHash, isSuccess: approvalSuccess } = useTokenApproval();
+  const { approve, hash: approvalHash, isSuccess: approvalSuccess, isError: approvalError, error: approvalErrorDetails } = useTokenApproval();
   const {
     createOrder,
     hash: orderHash,
     isSuccess: orderSuccess,
+    isError: orderError,
+    error: orderErrorDetails,
     receipt,
     getIntentIdFromReceipt
   } = useCreateOrder();
+
+  // Effect to handle approval success/failure
+  useEffect(() => {
+    if (approvalSuccess && pendingApprovalResolve) {
+      console.log("Approval confirmed!");
+      pendingApprovalResolve(true);
+      setPendingApprovalResolve(null);
+    } else if (approvalError && pendingApprovalResolve) {
+      console.log("Approval failed:", approvalErrorDetails);
+      setState('error');
+      setError(approvalErrorDetails?.message || 'Approval failed');
+      pendingApprovalResolve(null);
+      setPendingApprovalResolve(null);
+    }
+  }, [approvalSuccess, approvalError, approvalErrorDetails, pendingApprovalResolve]);
+
+  // Effect to handle order success/failure
+  useEffect(() => {
+    if (orderSuccess && receipt && pendingResolve) {
+      console.log("Transaction confirmed!", receipt);
+      
+      // Extract intent ID from receipt
+      const extractedIntentId = getIntentIdFromReceipt();
+      if (extractedIntentId) {
+        setIntentId(extractedIntentId);
+        setTxHash(orderHash || null);
+        setState('success');
+        pendingResolve({ success: true, intentId: extractedIntentId, txHash: orderHash });
+      } else {
+        setState('error');
+        setError('Failed to extract intent ID from transaction');
+        pendingResolve({ success: false, error: 'Failed to extract intent ID from transaction' });
+      }
+      
+      setPendingResolve(null);
+    } else if (orderError && pendingResolve) {
+      console.log("Transaction failed:", orderErrorDetails);
+      setState('error');
+      setError(orderErrorDetails?.message || 'Transaction failed');
+      pendingResolve({ success: false, error: orderErrorDetails?.message || 'Transaction failed' });
+      setPendingResolve(null);
+    }
+  }, [orderSuccess, orderError, orderErrorDetails, receipt, pendingResolve, getIntentIdFromReceipt, orderHash]);
 
   const submitOrder = async ({
     sourceChain,
@@ -186,7 +233,8 @@ export function useIntentOrderCreation() {
     destToken,
     destTokenAddress,
     minAmountOut,
-    resolver
+    resolver,
+    needsApproval = false
   }: {
     sourceChain: string;
     sourceToken: string;
@@ -198,6 +246,7 @@ export function useIntentOrderCreation() {
     destTokenAddress: Address;
     minAmountOut: string;
     resolver: Address;
+    needsApproval?: boolean;
   }) => {
     try {
       setState('checking');
@@ -206,23 +255,32 @@ export function useIntentOrderCreation() {
       const amountInBigInt = parseTokenAmount(amount, sourceTokenDecimals);
       const minAmountOutBigInt = parseTokenAmount(minAmountOut, sourceTokenDecimals); // Adjust decimals as needed
 
-      // Check allowance
-      // const needsApproval = await checkAllowance( sourceTokenAddress , userAddress, amountInBigInt )
-      const needsApproval = false
-
       if (needsApproval) {
         setState('approving');
-        await approve(sourceTokenAddress, amountInBigInt);
+        
+        // Approve tokens
+        approve(sourceTokenAddress, amountInBigInt);
 
         // Wait for approval to complete
-        while (!approvalSuccess) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        await new Promise((resolve, reject) => {
+          setPendingApprovalResolve(() => resolve);
+          
+          // Set timeout for approval
+          setTimeout(() => {
+            if (pendingApprovalResolve) {
+              setState('error');
+              setError('Approval timed out');
+              setPendingApprovalResolve(null);
+              reject(new Error('Approval timed out'));
+            }
+          }, 60000); // 1 minute timeout for approval
+        });
       }
 
       setState('creating');
 
-      await createOrder({
+      // Create the order
+      createOrder({
         sourceChain,
         sourceToken: sourceTokenAddress,
         amountIn: amountInBigInt,
@@ -232,23 +290,20 @@ export function useIntentOrderCreation() {
         resolver
       });
 
-      console.log("orderSuccess: ", orderSuccess)
-
-      // Wait for order creation to complete
-      while (!orderSuccess) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      }
-
-      // Extract intent ID from receipt
-      const extractedIntentId = getIntentIdFromReceipt();
-      if (extractedIntentId) {
-        setIntentId(extractedIntentId);
-        setTxHash(orderHash || null);
-        setState('success');
-        return { success: true, intentId: extractedIntentId, txHash: orderHash };
-      } else {
-        throw new Error('Failed to extract intent ID from transaction');
-      }
+      // Return a promise that resolves when the transaction is confirmed
+      return new Promise((resolve, reject) => {
+        setPendingResolve(() => resolve);
+        
+        // Set a timeout to reject if transaction takes too long
+        setTimeout(() => {
+          if (pendingResolve) {
+            setState('error');
+            setError('Transaction timed out');
+            setPendingResolve(null);
+            reject(new Error('Transaction timed out'));
+          }
+        }, 120000); // 2 minutes timeout
+      });
 
     } catch (err: any) {
       setError(err.message || 'Failed to create order');
@@ -272,6 +327,12 @@ export function useIntentOrderCreation() {
     txHash,
     reset
   };
+}
+
+// Helper function to check if approval is needed
+export function checkNeedsApproval(allowance: bigint | undefined, amount: bigint): boolean {
+  if (!allowance) return true;
+  return allowance < amount;
 }
 
 // Export helper functions
