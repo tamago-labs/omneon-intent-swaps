@@ -72,17 +72,17 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   const targetTokenInfo = TOKENS.SEPOLIA.find(t => t.symbol === targetToken);
 
   // Contract hooks - get all token balances
-  const usdcBalance = useTokenBalance(
+  const usdcBalance: any = useTokenBalance(
     CONTRACTS.SEPOLIA.MockUSDC,
     wallets.evm as Address
   );
 
-  const wethBalance = useTokenBalance(
+  const wethBalance: any = useTokenBalance(
     CONTRACTS.SEPOLIA.MockWETH,
     wallets.evm as Address
   );
 
-  const wbtcBalance = useTokenBalance(
+  const wbtcBalance: any = useTokenBalance(
     CONTRACTS.SEPOLIA.MockWBTC,
     wallets.evm as Address
   );
@@ -334,7 +334,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     setShowConfirmModal(false);
 
     try {
-      let result;
+      let result: any;
       
       if (sourceChain === 'SUI') {
         // Handle SUI order creation
@@ -356,7 +356,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
         });
       }
 
-      if (result.success) {
+      if (result && result.success) {
         setSuccessMessage(`Order created successfully! ID: ${result.intentId?.slice(0, 8)}...`);
 
         // Redirect to orders page after 2 seconds
