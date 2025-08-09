@@ -61,6 +61,8 @@ const schema = a.schema({
       actualAmountOut: a.string(), // Filled when completed 
       // Order Status
       status: a.enum(["PENDING", "COMPLETED", "CANCELLED", "FAILED", "EXPIRED"]),
+      // Execution condition (all in JSON)
+      executionCondition: a.json(),
       // Financial Info
       feeAmount: a.string(), // Protocol fee in source token
       exchangeRate: a.float(), // Rate when executed 
@@ -79,7 +81,7 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.publicApiKey()
-    ]), 
+    ]),
 });
 
 export type Schema = ClientSchema<typeof schema>;
