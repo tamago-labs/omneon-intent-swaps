@@ -37,7 +37,7 @@ module omneon::intent_rfq {
 
     /// Chain types for cross-chain operations
     public struct ChainType has store, copy, drop {
-        chain_type: u8 // 0: EVM, 1: SUI, 2: SOLANA, 3: APTOS, 4: BITCOIN
+        chain_type: u8 // 0: EVM, 1: SUI, 2: SOLANA, 3: APTOS, 4: BITCOIN, 5: MOVEMENT, 6: UMI, 7: IOTA, 8: SUPRA, 9: MASSA
     }
 
     /// Order status enumeration
