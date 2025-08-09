@@ -44,6 +44,8 @@ const schema = a.schema({
     .model({
       userId: a.id().required(),
       user: a.belongsTo("Wallet", "userId"),
+      senderAddress: a.string().required(),
+      recipientAddress: a.string().required(),
       resolverId: a.id().required(),
       resolver: a.belongsTo("Resolver", "resolverId"),
       intentId: a.string().required(), // bytes32 from smart contract also duplicate it for ID 
