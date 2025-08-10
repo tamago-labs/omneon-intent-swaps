@@ -1,15 +1,14 @@
-import axios from 'axios';
+import { OKXDexClient } from '@okx-dex/okx-dex-sdk'; 
+import { createEVMWallet } from '@okx-dex/okx-dex-sdk/dist/core/evm-wallet';
 import { ethers } from 'ethers';
-import crypto from 'crypto';
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 
 export interface OKXConfig {
     apiKey: string;
     secretKey: string;
     apiPassphrase: string;
     projectId: string;
-    evmRpcUrl: string;
     evmPrivateKey: string;
-    suiRpcUrl?: string;
     suiPrivateKey?: string;
 }
 
@@ -34,43 +33,86 @@ export interface QuoteResult {
     }>;
 }
 
-export interface SwapData {
-    data: string;
-    gasPrice: string;
-    gasLimit: string;
-    value: string;
-    to: string;
+export interface SwapResult {
+    transactionHash?: string;
+    transactionId?: string;
+    blockNumber?: number;
+    gasUsed?: string;
+    status?: number;
+    explorerUrl?: string;
+    details?: {
+        fromToken: {
+            amount: string;
+            symbol: string;
+        };
+        toToken: {
+            amount: string;
+            symbol: string;
+        };
+        priceImpact?: string;
+    };
 }
 
 export class OKXDexService {
+    private evmClient: OKXDexClient;
+    private suiClient: any;
     private config: OKXConfig;
-    private baseUrl = 'https://www.okx.com/api/v5/dex/aggregator';
-    private evmProvider: ethers.JsonRpcProvider;
-    private evmWallet: ethers.Wallet;
 
     constructor(config: OKXConfig) {
         this.config = config;
-        this.evmProvider = new ethers.JsonRpcProvider(config.evmRpcUrl);
-        this.evmWallet = new ethers.Wallet(config.evmPrivateKey, this.evmProvider);
+
+        // Initialize EVM client
+        const evmProvider = new ethers.JsonRpcProvider(this.getRpcUrl('evm'));
+        const evmWallet = createEVMWallet(config.evmPrivateKey, evmProvider);
+
+        this.evmClient = new OKXDexClient({
+            apiKey: config.apiKey,
+            secretKey: config.secretKey,
+            apiPassphrase: config.apiPassphrase,
+            projectId: config.projectId,
+            evm: {
+                wallet: evmWallet
+            }
+        });
+
+        // Initialize SUI client if private key is provided
+        if (config.suiPrivateKey) {
+
+            const wallet = Ed25519Keypair.fromSecretKey(config.suiPrivateKey);
+
+            this.suiClient = new OKXDexClient({
+                apiKey: config.apiKey,
+                secretKey: config.secretKey,
+                apiPassphrase: config.apiPassphrase,
+                projectId: config.projectId,
+                sui: {
+                    privateKey: config.suiPrivateKey,
+                    walletAddress: wallet.getPublicKey().toSuiAddress(),
+                    connection: {
+                        rpcUrl: 'https://fullnode.mainnet.sui.io'
+                    }
+                }
+            });
+        }
     }
 
-    private generateSignature(timestamp: string, method: string, requestPath: string, body = ''): string {
-        const message = timestamp + method + requestPath + body;
-        return crypto.createHmac('sha256', this.config.secretKey).update(message).digest('base64');
-    }
+    private getRpcUrl(chainType: 'evm' | 'sui', chainId?: string): string {
+        if (chainType === 'sui') {
+            return 'https://fullnode.mainnet.sui.io';
+        }
 
-    private getHeaders(method: string, requestPath: string, body = ''): Record<string, string> {
-        const timestamp = new Date().toISOString();
-        const signature = this.generateSignature(timestamp, method, requestPath, body);
-
-        return {
-            'OK-ACCESS-KEY': this.config.apiKey,
-            'OK-ACCESS-SIGN': signature,
-            'OK-ACCESS-TIMESTAMP': timestamp,
-            'OK-ACCESS-PASSPHRASE': this.config.apiPassphrase,
-            'OK-ACCESS-PROJECT': this.config.projectId,
-            'Content-Type': 'application/json'
-        };
+        // Dynamic EVM RPC URLs based on chain
+        const baseUrl = 'https://eth-mainnet.g.alchemy.com/v2/46BFnBkjDdWActWG5HvRV';
+        
+        switch (chainId) {
+            case '8453': // Base
+                return 'https://base-mainnet.g.alchemy.com/v2/46BFnBkjDdWActWG5HvRV';
+            case '10': // Optimism
+                return 'https://opt-mainnet.g.alchemy.com/v2/46BFnBkjDdWActWG5HvRV';
+            case '1': // Ethereum
+            default:
+                return baseUrl;
+        }
     }
 
     async getQuote(params: {
@@ -83,7 +125,9 @@ export class OKXDexService {
         try {
             console.log(`Getting quote for chain ${params.chainId}: ${params.fromTokenAddress} -> ${params.toTokenAddress}`);
 
-            const queryParams = new URLSearchParams({
+            const client = params.chainId === '784' ? this.suiClient : this.evmClient;
+
+            const quote = await client.dex.getQuote({
                 chainId: params.chainId,
                 fromTokenAddress: params.fromTokenAddress,
                 toTokenAddress: params.toTokenAddress,
@@ -91,56 +135,14 @@ export class OKXDexService {
                 slippage: params.slippage || '0.005'
             });
 
-            const requestPath = `/quote?${queryParams.toString()}`;
-            const headers = this.getHeaders('GET', requestPath);
-
-            const response = await axios.get(`${this.baseUrl}${requestPath}`, { headers });
-
-            if (response.data.code !== '0' || !response.data.data || response.data.data.length === 0) {
-                throw new Error(response.data.msg || 'No quote data available');
+            if (!quote.data || quote.data.length === 0) {
+                throw new Error('No quote data available');
             }
 
-            return response.data.data[0];
+            return quote.data[0];
         } catch (error: any) {
-            console.error('Error getting quote:', error.response?.data || error.message);
-            throw new Error(`Failed to get quote: ${error.response?.data?.msg || error.message}`);
-        }
-    }
-
-    async getSwapData(params: {
-        chainId: string;
-        fromTokenAddress: string;
-        toTokenAddress: string;
-        amount: string;
-        userWalletAddress: string;
-        slippage?: string;
-    }): Promise<SwapData> {
-        try {
-            console.log(`Getting swap data for chain ${params.chainId}`);
-
-            const requestBody = {
-                chainId: params.chainId,
-                fromTokenAddress: params.fromTokenAddress,
-                toTokenAddress: params.toTokenAddress,
-                amount: params.amount,
-                userWalletAddress: params.userWalletAddress,
-                slippage: params.slippage || '0.005'
-            };
-
-            const requestPath = '/swap';
-            const body = JSON.stringify(requestBody);
-            const headers = this.getHeaders('POST', requestPath, body);
-
-            const response = await axios.post(`${this.baseUrl}${requestPath}`, requestBody, { headers });
-
-            if (response.data.code !== '0' || !response.data.data || response.data.data.length === 0) {
-                throw new Error(response.data.msg || 'No swap data available');
-            }
-
-            return response.data.data[0].tx;
-        } catch (error: any) {
-            console.error('Error getting swap data:', error.response?.data || error.message);
-            throw new Error(`Failed to get swap data: ${error.response?.data?.msg || error.message}`);
+            console.error('Error getting quote:', error.message);
+            throw new Error(`Failed to get quote: ${error.message}`);
         }
     }
 
@@ -151,35 +153,41 @@ export class OKXDexService {
         amount: string;
         userWalletAddress: string;
         slippage?: string;
-    }) {
+    }): Promise<SwapResult> {
         try {
             console.log(`Executing EVM swap on chain ${params.chainId}`);
 
-            const swapData = await this.getSwapData(params);
+            // Update EVM provider for the specific chain
+            const rpcUrl = this.getRpcUrl('evm', params.chainId);
+            const evmProvider = new ethers.JsonRpcProvider(rpcUrl);
+            const evmWallet = createEVMWallet(this.config.evmPrivateKey, evmProvider);
 
-            const transaction = {
-                to: swapData.to,
-                data: swapData.data,
-                value: swapData.value,
-                gasLimit: swapData.gasLimit,
-                gasPrice: swapData.gasPrice
-            };
+            // Create new client with updated provider
+            const client = new OKXDexClient({
+                apiKey: this.config.apiKey,
+                secretKey: this.config.secretKey,
+                apiPassphrase: this.config.apiPassphrase,
+                projectId: this.config.projectId,
+                evm: {
+                    wallet: evmWallet
+                }
+            });
 
-            console.log('Sending transaction:', transaction);
+            const swapResult = await client.dex.executeSwap({
+                chainId: params.chainId,
+                fromTokenAddress: params.fromTokenAddress,
+                toTokenAddress: params.toTokenAddress,
+                amount: params.amount,
+                slippage: params.slippage || '0.005',
+                userWalletAddress: params.userWalletAddress
+            });
 
-            const txResponse = await this.evmWallet.sendTransaction(transaction);
-
-            console.log('Transaction sent:', txResponse.hash);
-
-            const receipt = await txResponse.wait();
-
-            console.log('EVM swap completed:', receipt?.hash);
+            console.log('EVM swap completed:', swapResult.transactionId);
 
             return {
-                transactionHash: receipt?.hash,
-                blockNumber: receipt?.blockNumber,
-                gasUsed: receipt?.gasUsed?.toString(),
-                status: receipt?.status
+                transactionHash: swapResult.transactionId,
+                explorerUrl: swapResult.explorerUrl,
+                details: swapResult.details
             };
         } catch (error: any) {
             console.error('Error executing EVM swap:', error);
@@ -187,30 +195,79 @@ export class OKXDexService {
         }
     }
 
+    async executeSuiSwap(params: {
+        chainId: string;
+        fromTokenAddress: string;
+        toTokenAddress: string;
+        amount: string;
+        userWalletAddress: string;
+        slippage?: string;
+    }): Promise<SwapResult> {
+        try {
+            console.log(`Executing SUI swap`);
+
+            if (!this.suiClient) {
+                throw new Error('SUI client not initialized - missing SUI private key');
+            }
+
+            const swapResult = await this.suiClient.dex.executeSwap({
+                chainId: params.chainId,
+                fromTokenAddress: params.fromTokenAddress,
+                toTokenAddress: params.toTokenAddress,
+                amount: params.amount,
+                slippage: params.slippage || '0.005',
+                userWalletAddress: params.userWalletAddress
+            });
+
+            console.log('SUI swap completed:', swapResult.transactionId);
+
+            return {
+                transactionId: swapResult.transactionId,
+                explorerUrl: swapResult.explorerUrl,
+                details: swapResult.details
+            };
+        } catch (error: any) {
+            console.error('Error executing SUI swap:', error);
+            throw new Error(`SUI swap failed: ${error.message}`);
+        }
+    }
+
     async checkApproval(params: {
         chainId: string;
         tokenAddress: string;
         amount: string;
-        spenderAddress?: string;
     }): Promise<{ needsApproval: boolean; allowance: string }> {
         try {
             if (params.tokenAddress === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
                 return { needsApproval: false, allowance: 'unlimited' };
             }
 
-            const requestPath = `/approve/allowance?chainId=${params.chainId}&tokenContractAddress=${params.tokenAddress}&approveAmount=${params.amount}`;
-            const headers = this.getHeaders('GET', requestPath);
+            // Update EVM provider for the specific chain
+            const rpcUrl = this.getRpcUrl('evm', params.chainId);
+            const evmProvider = new ethers.JsonRpcProvider(rpcUrl);
+            const evmWallet = createEVMWallet(this.config.evmPrivateKey, evmProvider);
 
-            const response = await axios.get(`${this.baseUrl}${requestPath}`, { headers });
+            const client = new OKXDexClient({
+                apiKey: this.config.apiKey,
+                secretKey: this.config.secretKey,
+                apiPassphrase: this.config.apiPassphrase,
+                projectId: this.config.projectId,
+                evm: {
+                    wallet: evmWallet
+                }
+            });
 
-            if (response.data.code !== '0') {
-                throw new Error(response.data.msg || 'Failed to check allowance');
+            const result = await client.dex.executeApproval({
+                chainId: params.chainId,
+                tokenContractAddress: params.tokenAddress,
+                approveAmount: params.amount
+            });
+
+            if ('alreadyApproved' in result) {
+                return { needsApproval: false, allowance: params.amount };
+            } else {
+                return { needsApproval: true, allowance: '0' };
             }
-
-            const allowance = response.data.data[0]?.allowance || '0';
-            const needsApproval = BigInt(allowance) < BigInt(params.amount);
-
-            return { needsApproval, allowance };
         } catch (error: any) {
             console.error('Error checking approval:', error);
             return { needsApproval: true, allowance: '0' };
@@ -221,47 +278,44 @@ export class OKXDexService {
         chainId: string;
         tokenAddress: string;
         amount: string;
-    }) {
+    }): Promise<SwapResult> {
         try {
             console.log(`Executing approval for token ${params.tokenAddress}`);
 
-            const requestBody = {
+            // Update EVM provider for the specific chain
+            const rpcUrl = this.getRpcUrl('evm', params.chainId);
+            const evmProvider = new ethers.JsonRpcProvider(rpcUrl);
+            const evmWallet = createEVMWallet(this.config.evmPrivateKey, evmProvider);
+
+            const client = new OKXDexClient({
+                apiKey: this.config.apiKey,
+                secretKey: this.config.secretKey,
+                apiPassphrase: this.config.apiPassphrase,
+                projectId: this.config.projectId,
+                evm: {
+                    wallet: evmWallet
+                }
+            });
+
+            const result = await client.dex.executeApproval({
                 chainId: params.chainId,
                 tokenContractAddress: params.tokenAddress,
                 approveAmount: params.amount
-            };
+            });
 
-            const requestPath = '/approve/transaction';
-            const body = JSON.stringify(requestBody);
-            const headers = this.getHeaders('POST', requestPath, body);
-
-            const response = await axios.post(`${this.baseUrl}${requestPath}`, requestBody, { headers });
-
-            if (response.data.code !== '0' || !response.data.data || response.data.data.length === 0) {
-                throw new Error(response.data.msg || 'No approval data available');
+            if ('alreadyApproved' in result) {
+                console.log('Token already approved');
+                return {
+                    transactionHash: 'already_approved',
+                    status: 1
+                };
+            } else {
+                console.log('Token approval completed:', result.transactionHash);
+                return {
+                    transactionHash: result.transactionHash,
+                    explorerUrl: result.explorerUrl
+                };
             }
-
-            const approvalData = response.data.data[0];
-
-            const transaction = {
-                to: approvalData.to,
-                data: approvalData.data,
-                value: approvalData.value || '0',
-                gasLimit: approvalData.gasLimit,
-                gasPrice: approvalData.gasPrice
-            };
-
-            const txResponse = await this.evmWallet.sendTransaction(transaction);
-            const receipt = await txResponse.wait();
-
-            console.log('Token approval completed:', receipt?.hash);
-
-            return {
-                transactionHash: receipt?.hash,
-                blockNumber: receipt?.blockNumber,
-                gasUsed: receipt?.gasUsed?.toString(),
-                status: receipt?.status
-            };
         } catch (error: any) {
             console.error('Error executing approval:', error);
             throw new Error(`Token approval failed: ${error.message}`);
@@ -288,10 +342,6 @@ export class OKXDexService {
         const divisor = Math.pow(10, decimals);
         const value = parseFloat(amount) / divisor;
         return value.toFixed(6);
-    }
-
-    private delay(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
 

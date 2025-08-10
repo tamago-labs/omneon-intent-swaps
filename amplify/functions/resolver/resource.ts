@@ -14,12 +14,10 @@ export const resolverScheduler = defineFunction({
         OKX_PROJECT_ID: secret("OKX_PROJECT_ID"),
         
         // EVM Configuration
-        EVM_RPC_URL: secret("EVM_RPC_URL"),
         EVM_RESOLVER_PRIVATE_KEY: secret("EVM_RESOLVER_PRIVATE_KEY"),
         EVM_RESOLVER_ADDRESS: secret("EVM_RESOLVER_ADDRESS"),
         
         // SUI Configuration
-        SUI_RPC_URL: secret("SUI_RPC_URL"),
         SUI_RESOLVER_PRIVATE_KEY: secret("SUI_RESOLVER_PRIVATE_KEY"),
         SUI_RESOLVER_ADDRESS: secret("SUI_RESOLVER_ADDRESS"),
     },

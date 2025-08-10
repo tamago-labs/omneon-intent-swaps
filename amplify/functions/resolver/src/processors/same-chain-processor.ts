@@ -32,11 +32,8 @@ export class SameChainProcessor extends BaseChainProcessor {
       secretKey: process.env.OKX_SECRET_KEY!,
       apiPassphrase: process.env.OKX_API_PASSPHRASE!,
       projectId: process.env.OKX_PROJECT_ID!,
-      evmRpcUrl: process.env.EVM_RPC_URL!,
       evmPrivateKey: process.env.EVM_RESOLVER_PRIVATE_KEY!,
-      suiRpcUrl: process.env.SUI_RPC_URL!,
-      suiPrivateKey: process.env.SUI_RESOLVER_PRIVATE_KEY!,
-      suiWalletAddress: process.env.SUI_RESOLVER_ADDRESS!
+      suiPrivateKey: process.env.SUI_RESOLVER_PRIVATE_KEY
     };
     
     this.okxService = new OKXDexService(config);
@@ -107,6 +104,28 @@ export class SameChainProcessor extends BaseChainProcessor {
         throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
       }
 
+      // Check if token approval is needed (skip for native tokens)
+      if (order.sourceTokenAddress !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
+        console.log('Checking token approval...');
+        const approvalCheck = await this.okxService.checkApproval({
+          chainId,
+          tokenAddress: order.sourceTokenAddress,
+          amount: order.amountIn
+        });
+
+        if (approvalCheck.needsApproval) {
+          console.log('Token approval required, executing...');
+          const approvalResult = await this.okxService.executeApproval({
+            chainId,
+            tokenAddress: order.sourceTokenAddress,
+            amount: order.amountIn
+          });
+          console.log(`Approval completed: ${approvalResult.transactionHash}`);
+        } else {
+          console.log('Token already approved');
+        }
+      }
+
       // Execute the swap
       const swapResult = await this.okxService.executeEvmSwap({
         chainId,
@@ -121,8 +140,9 @@ export class SameChainProcessor extends BaseChainProcessor {
       
       return {
         success: true,
-        txHash: swapResult.transactionHash,
-        actualAmountOut: quote.toToken.amount
+        txHash: swapResult.transactionHash!,
+        actualAmountOut: swapResult.details?.toToken.amount || quote.toToken.amount,
+        explorerUrl: swapResult.explorerUrl
       };
     } catch (error: any) {
       console.error('EVM swap error:', error);
@@ -168,8 +188,9 @@ export class SameChainProcessor extends BaseChainProcessor {
       
       return {
         success: true,
-        txHash: swapResult.transactionId,
-        actualAmountOut: quote.toToken.amount
+        txHash: swapResult.transactionId!,
+        actualAmountOut: swapResult.details?.toToken.amount || quote.toToken.amount,
+        explorerUrl: swapResult.explorerUrl
       };
     } catch (error: any) {
       console.error('SUI swap error:', error);
@@ -182,6 +203,7 @@ export class SameChainProcessor extends BaseChainProcessor {
     
     try {
       // TODO: Implement actual EVM refund transaction
+      // For now, simulate refund
       await this.simulateDelay(1000);
       const txHash = this.generateMockTxHash();
       
@@ -202,6 +224,7 @@ export class SameChainProcessor extends BaseChainProcessor {
     
     try {
       // TODO: Implement actual SUI refund transaction
+      // For now, simulate refund
       await this.simulateDelay(1000);
       const txHash = this.generateMockTxHash();
       
