@@ -35,18 +35,39 @@ export const CHAIN_TYPES = {
 export const SUI_TOKENS = {
   MAINNET: [
     {
+      symbol: 'WETH',
+      name: 'Wrapped Ether',
+      type: '0xd0e89b2af5e4910726fbcd8b8dd37bb79b29e5f83f7491bca830e94f7f226d29::eth::ETH',
+      decimals: 8,
+      icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png'
+    },
+    {
+      symbol: 'USDC',
+      name: 'USD Coin',
+      type: '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC',
+      decimals: 6,
+      icon: 'https://etherscan.io/token/images/usdc_ofc_32.svg'
+    },
+    {
+      symbol: 'USDT',
+      name: 'Tether USD',
+      type: '0x375f70cf2ae4c00bf37117d0c85a2c71545e6ee05c4a5c7d282cd66a4504b068::usdt::USDT',
+      decimals: 6,
+      icon: 'https://etherscan.io/token/images/tethernew_32.svg'
+    },
+    {
+      symbol: 'WBTC',
+      name: 'Wrapped Bitcoin',
+      type: '0xaafb102dd0902f5055cadecd687fb5b71ca82ef0e0285d90afde828ec58ca96b::btc::BTC',
+      decimals: 8,
+      icon: 'https://etherscan.io/token/images/wrappedbtc_ofc_32.svg'
+    },
+    {
       symbol: 'SUI',
       name: 'Sui',
       type: '0x2::sui::SUI',
       decimals: 9,
-      icon: '🔷'
-    },
-    {
-      symbol: 'TEST',
-      name: 'Test Token',
-      type: '0x2fa86cb35a443fe6ef0c534d1c6f1b8f05750c9043e39548ae708dda8a499337::test_token::TEST_TOKEN',
-      decimals: 6,
-      icon: '🪙'
+      icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/20947.png'
     }
   ]
 };

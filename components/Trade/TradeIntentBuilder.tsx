@@ -44,9 +44,9 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   // Core state
   const [mode, setMode] = useState<'same-chain' | 'cross-chain'>('same-chain');
   const [amount, setAmount] = useState('100');
-  const [sourceToken, setSourceToken] = useState('USDC');
+  const [sourceToken, setSourceToken] = useState('WETH');
   const [sourceChain, setSourceChain] = useState('Ethereum');
-  const [targetToken, setTargetToken] = useState('WETH');
+  const [targetToken, setTargetToken] = useState('USDC');
   const [targetChain, setTargetChain] = useState('Ethereum');
 
   // Advanced settings
@@ -79,13 +79,18 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   const currentContracts = sourceChain !== 'SUI' ? getContractsForChain(sourceChain) : null;
 
   // Contract hooks - get token balances dynamically based on selected chain
+  const wethBalance: any = useTokenBalance(
+    currentContracts?.WETH || ('0x0000000000000000000000000000000000000000' as Address),
+    wallets.evm as Address
+  );
+
   const usdcBalance: any = useTokenBalance(
     currentContracts?.USDC || ('0x0000000000000000000000000000000000000000' as Address),
     wallets.evm as Address
   );
 
-  const wethBalance: any = useTokenBalance(
-    currentContracts?.WETH || ('0x0000000000000000000000000000000000000000' as Address),
+  const usdtBalance: any = useTokenBalance(
+    currentContracts?.USDT || ('0x0000000000000000000000000000000000000000' as Address),
     wallets.evm as Address
   );
 
@@ -101,10 +106,12 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     }
     
     // For EVM chains, get balance based on token symbol
-    if (sourceToken === 'USDC' && usdcBalance.data && sourceTokenInfo) {
-      return formatTokenAmount(usdcBalance.data, sourceTokenInfo.decimals);
-    } else if (sourceToken === 'WETH' && wethBalance.data && sourceTokenInfo) {
+    if (sourceToken === 'WETH' && wethBalance.data && sourceTokenInfo) {
       return formatTokenAmount(wethBalance.data, sourceTokenInfo.decimals);
+    } else if (sourceToken === 'USDC' && usdcBalance.data && sourceTokenInfo) {
+      return formatTokenAmount(usdcBalance.data, sourceTokenInfo.decimals);
+    } else if (sourceToken === 'USDT' && usdtBalance.data && sourceTokenInfo) {
+      return formatTokenAmount(usdtBalance.data, sourceTokenInfo.decimals);
     } else if (sourceToken === 'WBTC' && wbtcBalance.data && sourceTokenInfo) {
       return formatTokenAmount(wbtcBalance.data, sourceTokenInfo.decimals);
     }
@@ -127,15 +134,15 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
 
   // Chain configurations
   const sameChainNetworks = [
-    { name: 'Ethereum', logo: '⟠' },
-    { name: 'Base', logo: '🔵' },
-    { name: 'Optimism', logo: '🔴' },
-    { name: 'SUI', logo: '🔷' }
+    { name: 'Ethereum', logo: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png' },
+    { name: 'Base', logo: 'https://images.blockscan.com/chain-logos/base.svg' },
+    { name: 'Optimism', logo: 'https://optimistic.etherscan.io/assets/optimism/images/svg/logos/token-secondary-light.svg?v=25.7.5.2' },
+    { name: 'SUI', logo: 'https://s2.coinmarketcap.com/static/img/coins/64x64/20947.png' }
   ];
 
   const crossChainNetworks = [
-    { name: 'Ethereum', logo: '⟠' },
-    { name: 'SUI', logo: '🔷' }
+    { name: 'Ethereum', logo: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png' },
+    { name: 'SUI', logo: 'https://s2.coinmarketcap.com/static/img/coins/64x64/20947.png' }
   ];
 
   const tokens = sourceChain === 'SUI' 
@@ -151,10 +158,12 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
         let balance = '0.00';
         
         // Get balance based on token symbol
-        if (token.symbol === 'USDC' && usdcBalance.data) {
-          balance = formatTokenAmount(usdcBalance.data, token.decimals);
-        } else if (token.symbol === 'WETH' && wethBalance.data) {
+        if (token.symbol === 'WETH' && wethBalance.data) {
           balance = formatTokenAmount(wethBalance.data, token.decimals);
+        } else if (token.symbol === 'USDC' && usdcBalance.data) {
+          balance = formatTokenAmount(usdcBalance.data, token.decimals);
+        } else if (token.symbol === 'USDT' && usdtBalance.data) {
+          balance = formatTokenAmount(usdtBalance.data, token.decimals);
         } else if (token.symbol === 'WBTC' && wbtcBalance.data) {
           balance = formatTokenAmount(wbtcBalance.data, token.decimals);
         }
@@ -179,21 +188,21 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
       
       // Reset tokens when switching chains
       if (sourceChain === 'SUI') {
-        setSourceToken('SUI');
-        setTargetToken('TEST');
+        setSourceToken('WETH');
+        setTargetToken('USDC');
       } else {
-        setSourceToken('USDC');
-        setTargetToken('WETH');
+        setSourceToken('WETH');
+        setTargetToken('USDC');
       }
     } else {
       if (sourceChain === 'SUI') {
         setTargetChain('Ethereum');
-        setSourceToken('SUI');
+        setSourceToken('WETH');
         setTargetToken('USDC');
       } else {
         setTargetChain('SUI');
-        setSourceToken('USDC');
-        setTargetToken('SUI');
+        setSourceToken('WETH');
+        setTargetToken('WETH');
       }
       setCondition(`immediately at best available cross-chain rate`);
     }
@@ -741,7 +750,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                     className="bg-slate-700/50 rounded-lg p-4 flex items-center justify-between"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl">{token.icon}</span>
+                      <img src={token.icon} alt={token.name} className="w-8 h-8 rounded-full" />
                       <div>
                         <div className="font-medium text-white">{token.name}</div>
                         <div className="text-sm text-slate-400">{token.price}</div>
@@ -975,7 +984,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <span className="text-2xl">{chain.logo}</span>
+                      <img src={chain.logo} alt={chain.name} className="w-8 h-8 rounded-full" />
                       <div className="text-left">
                         <div className="font-medium">{chain.name}</div>
                         <div className="text-sm text-slate-400">
@@ -998,7 +1007,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <span className="text-2xl">{token.icon}</span>
+                      <img src={token.icon} alt={token.name} className="w-8 h-8 rounded-full" />
                       <div className="text-left flex-1">
                         <div className="font-medium">{token.name}</div>
                         <div className="text-sm text-slate-400">{token.price}</div>

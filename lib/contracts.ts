@@ -79,23 +79,25 @@ export const CONTRACTS = {
   ETHEREUM: {
     IntentRFQ: '0x9feb0D7447081835d058D4a9de4F89f4651586Cb' as Address,
     ResolverRegistry: '0x96D188A974a3d43578eE55da240361c72A7b1610' as Address,
-    USDC: '0xA0b86a33E6441c1C07bDa0B52d1B3ae0fe8f78d6' as Address, // USDC on Ethereum
-    WETH: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' as Address, // WETH on Ethereum
-    WBTC: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599' as Address, // WBTC on Ethereum
+    WETH: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' as Address,
+    USDC: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Address,
+    USDT: '0xdAC17F958D2ee523a2206206994597C13D831ec7' as Address,
+    WBTC: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599' as Address,
   },
   BASE: {
     IntentRFQ: '0xfC44EF149b458Bab72A4AE6F870CaBf7575D955e' as Address,
     ResolverRegistry: '0x49067a1b9F07ac6b2Df9eB95e649A796B16478a6' as Address,
-    USDC: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address, // USDC on Base
-    WETH: '0x4200000000000000000000000000000000000006' as Address, // WETH on Base
-    WBTC: '0x236aa50979D5f3De3Bd1Eeb40E81137F22ab794b' as Address, // WBTC on Base (placeholder)
+    WETH: '0x4200000000000000000000000000000000000006' as Address,
+    USDC: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address,
+    USDT: '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2' as Address,
+    WBTC: '0x0555E30da8f98308EdB960aa94C0Db47230d2B9c' as Address,
   },
   OPTIMISM: {
     IntentRFQ: '0x38170B724fa94B48AAA52dCd45438Da718138550' as Address,
     ResolverRegistry: '0x9DaBaFa492188093116cfEDee1b13aD76b1c1742' as Address,
-    USDC: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85' as Address, // USDC on Optimism
-    WETH: '0x4200000000000000000000000000000000000006' as Address, // WETH on Optimism
-    WBTC: '0x68f180fcCe6836688e9084f035309E29Bf0A2095' as Address, // WBTC on Optimism
+    WETH: '0x4200000000000000000000000000000000000006' as Address,
+    USDC: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85' as Address,
+    WBTC: '0x68f180fcCe6836688e9084f035309E29Bf0A2095' as Address,
   }
 };
 
@@ -106,19 +108,27 @@ export const EVM_RESOLVER_ADDRESS = '0xee098fEA55039762bC5db10a512588a33e9F965E'
 export const TOKENS = {
   ETHEREUM: [
     {
-      address: CONTRACTS.ETHEREUM.USDC,
-      symbol: 'USDC',
-      name: 'USD Coin',
-      decimals: 6,
-      icon: '💵',
-      chainId: NETWORKS.ETHEREUM.chainId
-    },
-    {
       address: CONTRACTS.ETHEREUM.WETH,
       symbol: 'WETH',
       name: 'Wrapped Ether',
       decimals: 18,
-      icon: '⟠',
+      icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png',
+      chainId: NETWORKS.ETHEREUM.chainId
+    },
+    {
+      address: CONTRACTS.ETHEREUM.USDC,
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 6,
+      icon: 'https://etherscan.io/token/images/usdc_ofc_32.svg',
+      chainId: NETWORKS.ETHEREUM.chainId
+    },
+    {
+      address: CONTRACTS.ETHEREUM.USDT,
+      symbol: 'USDT',
+      name: 'Tether USD',
+      decimals: 6,
+      icon: 'https://etherscan.io/token/images/tethernew_32.svg',
       chainId: NETWORKS.ETHEREUM.chainId
     },
     {
@@ -126,25 +136,33 @@ export const TOKENS = {
       symbol: 'WBTC',
       name: 'Wrapped Bitcoin',
       decimals: 8,
-      icon: '₿',
+      icon: 'https://etherscan.io/token/images/wrappedbtc_ofc_32.svg',
       chainId: NETWORKS.ETHEREUM.chainId
     }
   ],
   BASE: [
     {
-      address: CONTRACTS.BASE.USDC,
-      symbol: 'USDC',
-      name: 'USD Coin',
-      decimals: 6,
-      icon: '💵',
-      chainId: NETWORKS.BASE.chainId
-    },
-    {
       address: CONTRACTS.BASE.WETH,
       symbol: 'WETH',
       name: 'Wrapped Ether',
       decimals: 18,
-      icon: '⟠',
+      icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png',
+      chainId: NETWORKS.BASE.chainId
+    },
+    {
+      address: CONTRACTS.BASE.USDC,
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 6,
+      icon: 'https://etherscan.io/token/images/usdc_ofc_32.svg',
+      chainId: NETWORKS.BASE.chainId
+    },
+    {
+      address: CONTRACTS.BASE.USDT,
+      symbol: 'USDT',
+      name: 'Tether USD',
+      decimals: 6,
+      icon: 'https://etherscan.io/token/images/tethernew_32.svg',
       chainId: NETWORKS.BASE.chainId
     },
     {
@@ -152,25 +170,25 @@ export const TOKENS = {
       symbol: 'WBTC',
       name: 'Wrapped Bitcoin',
       decimals: 8,
-      icon: '₿',
+      icon: 'https://etherscan.io/token/images/wrappedbtc_ofc_32.svg',
       chainId: NETWORKS.BASE.chainId
     }
   ],
   OPTIMISM: [
     {
-      address: CONTRACTS.OPTIMISM.USDC,
-      symbol: 'USDC',
-      name: 'USD Coin',
-      decimals: 6,
-      icon: '💵',
-      chainId: NETWORKS.OPTIMISM.chainId
-    },
-    {
       address: CONTRACTS.OPTIMISM.WETH,
       symbol: 'WETH',
       name: 'Wrapped Ether',
       decimals: 18,
-      icon: '⟠',
+      icon: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png',
+      chainId: NETWORKS.OPTIMISM.chainId
+    },
+    {
+      address: CONTRACTS.OPTIMISM.USDC,
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 6,
+      icon: 'https://etherscan.io/token/images/usdc_ofc_32.svg',
       chainId: NETWORKS.OPTIMISM.chainId
     },
     {
@@ -178,7 +196,7 @@ export const TOKENS = {
       symbol: 'WBTC',
       name: 'Wrapped Bitcoin',
       decimals: 8,
-      icon: '₿',
+      icon: 'https://etherscan.io/token/images/wrappedbtc_ofc_32.svg',
       chainId: NETWORKS.OPTIMISM.chainId
     }
   ]

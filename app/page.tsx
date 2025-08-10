@@ -12,8 +12,7 @@ export default function App() {
     <main>
        <HeroSection/>
        <SupportedChainsSection/>
-       <HowItWorksSection/>
-       {/* <IntentBuilderSection/> */}
+       <HowItWorksSection/> 
        <ComparisonTableSection/> 
     </main>
   );

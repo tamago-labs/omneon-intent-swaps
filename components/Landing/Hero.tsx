@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import Link from "next/link"
 import { ArrowRight, Zap, Shield, Globe, ChevronUp, ChevronDown } from 'lucide-react';
 
 const HeroSection = () => {
@@ -52,10 +53,13 @@ const HeroSection = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.4 }}
                         >
-                            <button className="group flex-1 px-4 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500 text-white font-medium sm:font-semibold text-sm sm:text-base rounded-xl flex items-center justify-center gap-2 sm:gap-3 hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105">
+                            <Link href="/trade">
+                             <button className="group flex-1 px-4 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-blue-500 via-purple-500 to-cyan-500 text-white font-medium sm:font-semibold text-sm sm:text-base rounded-xl flex items-center justify-center gap-2 sm:gap-3 hover:shadow-xl hover:shadow-blue-500/25 transition-all duration-300 hover:scale-105">
                                 Start Trading
                                 <ArrowRight size={16} className="sm:w-[18px] sm:h-[18px] group-hover:translate-x-1 transition-transform" />
                             </button>
+                            </Link>
+                           
 
                             <button className="flex-1 px-4 py-3 sm:px-8 sm:py-4 bg-slate-800/80 backdrop-blur-sm text-white font-medium sm:font-semibold text-sm sm:text-base rounded-xl border border-slate-700/50 hover:bg-slate-700/80 hover:border-slate-600/50 transition-all duration-300">
                                 Explore Docs
