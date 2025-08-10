@@ -3,8 +3,8 @@ const nextConfig = {
     eslint: {
         ignoreDuringBuilds: true,
     },
-    webpack: (config) => {
-        config.externals.push('pino-pretty', /* add any other modules that might be causing the error */);
+    webpack: (config) => { 
+        config.externals.push('pino-pretty' , 'bigint-crypto-utils', /* add any other modules that might be causing the error */);
         return config;
     },
 }
