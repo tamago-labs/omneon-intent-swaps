@@ -1,13 +1,13 @@
 import { HTTPClient } from "./http-client";
 import { DexAPI } from "./dex"
-// import { BridgeAPI } from "../api/bridge";
+import { BridgeAPI } from "../api/bridge";
 // import type { OKXConfig } from "../types";
 
 export class OKXDexClient {
     private config: any;
     private httpClient: HTTPClient;
     public dex: DexAPI;
-    // public bridge: BridgeAPI;
+    public bridge: BridgeAPI;
 
     constructor(config: any) {
         this.config = {
@@ -19,6 +19,6 @@ export class OKXDexClient {
 
         this.httpClient = new HTTPClient(this.config);
         this.dex = new DexAPI(this.httpClient, this.config);
-        // this.bridge = new BridgeAPI(this.httpClient);
+        this.bridge = new BridgeAPI(this.httpClient);
     }
 }

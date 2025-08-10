@@ -1,4 +1,5 @@
 // import { OKXDexClient } from '@okx-dex/okx-dex-sdk'; 
+import { OKXDexClient } from "./okx-dex"
 import { createEVMWallet } from "./evm-wallet"
 import { ethers } from 'ethers';
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
