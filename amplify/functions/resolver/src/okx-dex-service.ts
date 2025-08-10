@@ -1,5 +1,3 @@
-import { OKXDexClient } from '@okx-dex/okx-dex-sdk'; 
-import { createEVMWallet } from "./evm-wallet"
 import { ethers } from 'ethers';
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 
@@ -54,45 +52,118 @@ export interface SwapResult {
 }
 
 export class OKXDexService {
-    private evmClient: OKXDexClient;
+    private evmClient: any;
     private suiClient: any;
     private config: OKXConfig;
+    private isInitialized = false;
 
     constructor(config: OKXConfig) {
         this.config = config;
+    }
 
-        // Initialize EVM client
-        const evmProvider = new ethers.JsonRpcProvider(this.getRpcUrl('evm'));
-        const evmWallet = createEVMWallet(config.evmPrivateKey, evmProvider);
+    // Lazy initialization with dynamic imports
+    private async initializeClients(): Promise<void> {
+        if (this.isInitialized) return;
 
-        this.evmClient = new OKXDexClient({
-            apiKey: config.apiKey,
-            secretKey: config.secretKey,
-            apiPassphrase: config.apiPassphrase,
-            projectId: config.projectId,
-            evm: {
-                wallet: evmWallet
+        try {
+            // Dynamic import of OKX DEX SDK
+            const { OKXDexClient } = await import('@okx-dex/okx-dex-sdk');
+            
+            // Dynamic import of EVM wallet utility
+            const { createEVMWallet } = await import('./evm-wallet');
+
+            // Initialize EVM client
+            const evmProvider = new ethers.JsonRpcProvider(this.getRpcUrl('evm'));
+            const evmWallet = createEVMWallet(this.config.evmPrivateKey, evmProvider);
+
+            this.evmClient = new OKXDexClient({
+                apiKey: this.config.apiKey,
+                secretKey: this.config.secretKey,
+                apiPassphrase: this.config.apiPassphrase,
+                projectId: this.config.projectId,
+                evm: {
+                    wallet: evmWallet
+                }
+            });
+
+            // Initialize SUI client if private key is provided
+            if (this.config.suiPrivateKey) {
+                const wallet = Ed25519Keypair.fromSecretKey(this.config.suiPrivateKey);
+
+                this.suiClient = new OKXDexClient({
+                    apiKey: this.config.apiKey,
+                    secretKey: this.config.secretKey,
+                    apiPassphrase: this.config.apiPassphrase,
+                    projectId: this.config.projectId,
+                    sui: {
+                        privateKey: this.config.suiPrivateKey,
+                        walletAddress: wallet.getPublicKey().toSuiAddress(),
+                        connection: {
+                            rpcUrl: 'https://fullnode.mainnet.sui.io'
+                        }
+                    }
+                });
             }
-        });
 
-        // Initialize SUI client if private key is provided
-        if (config.suiPrivateKey) {
+            this.isInitialized = true;
+            console.log('OKX DEX clients initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize OKX DEX clients:', error);
+            throw new Error(`Initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
 
-            const wallet = Ed25519Keypair.fromSecretKey(config.suiPrivateKey);
+    // Alternative: Create clients on-demand with dynamic imports
+    private async createEvmClient(chainId?: string): Promise<any> {
+        try {
+            const { OKXDexClient } = await import('@okx-dex/okx-dex-sdk');
+            const { createEVMWallet } = await import('./evm-wallet');
 
-            this.suiClient = new OKXDexClient({
-                apiKey: config.apiKey,
-                secretKey: config.secretKey,
-                apiPassphrase: config.apiPassphrase,
-                projectId: config.projectId,
+            const rpcUrl = this.getRpcUrl('evm', chainId);
+            const evmProvider = new ethers.JsonRpcProvider(rpcUrl);
+            const evmWallet = createEVMWallet(this.config.evmPrivateKey, evmProvider);
+
+            return new OKXDexClient({
+                apiKey: this.config.apiKey,
+                secretKey: this.config.secretKey,
+                apiPassphrase: this.config.apiPassphrase,
+                projectId: this.config.projectId,
+                evm: {
+                    wallet: evmWallet
+                }
+            });
+        } catch (error) {
+            console.error('Failed to create EVM client:', error);
+            throw new Error(`EVM client creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    }
+
+    private async createSuiClient(): Promise<any> {
+        if (!this.config.suiPrivateKey) {
+            throw new Error('SUI private key not provided');
+        }
+
+        try {
+            const { OKXDexClient } = await import('@okx-dex/okx-dex-sdk');
+            
+            const wallet = Ed25519Keypair.fromSecretKey(this.config.suiPrivateKey);
+
+            return new OKXDexClient({
+                apiKey: this.config.apiKey,
+                secretKey: this.config.secretKey,
+                apiPassphrase: this.config.apiPassphrase,
+                projectId: this.config.projectId,
                 sui: {
-                    privateKey: config.suiPrivateKey,
+                    privateKey: this.config.suiPrivateKey,
                     walletAddress: wallet.getPublicKey().toSuiAddress(),
                     connection: {
                         rpcUrl: 'https://fullnode.mainnet.sui.io'
                     }
                 }
             });
+        } catch (error) {
+            console.error('Failed to create SUI client:', error);
+            throw new Error(`SUI client creation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
 
@@ -125,7 +196,10 @@ export class OKXDexService {
         try {
             console.log(`Getting quote for chain ${params.chainId}: ${params.fromTokenAddress} -> ${params.toTokenAddress}`);
 
-            const client = params.chainId === '784' ? this.suiClient : this.evmClient;
+            // Use on-demand client creation instead of pre-initialized clients
+            const client = params.chainId === '784' 
+                ? await this.createSuiClient() 
+                : await this.createEvmClient(params.chainId);
 
             const quote = await client.dex.getQuote({
                 chainId: params.chainId,
@@ -157,21 +231,8 @@ export class OKXDexService {
         try {
             console.log(`Executing EVM swap on chain ${params.chainId}`);
 
-            // Update EVM provider for the specific chain
-            const rpcUrl = this.getRpcUrl('evm', params.chainId);
-            const evmProvider = new ethers.JsonRpcProvider(rpcUrl);
-            const evmWallet = createEVMWallet(this.config.evmPrivateKey, evmProvider);
-
-            // Create new client with updated provider
-            const client = new OKXDexClient({
-                apiKey: this.config.apiKey,
-                secretKey: this.config.secretKey,
-                apiPassphrase: this.config.apiPassphrase,
-                projectId: this.config.projectId,
-                evm: {
-                    wallet: evmWallet
-                }
-            });
+            // Create client on-demand with dynamic imports
+            const client = await this.createEvmClient(params.chainId);
 
             const swapResult = await client.dex.executeSwap({
                 chainId: params.chainId,
@@ -206,11 +267,10 @@ export class OKXDexService {
         try {
             console.log(`Executing SUI swap`);
 
-            if (!this.suiClient) {
-                throw new Error('SUI client not initialized - missing SUI private key');
-            }
+            // Create SUI client on-demand
+            const suiClient = await this.createSuiClient();
 
-            const swapResult = await this.suiClient.dex.executeSwap({
+            const swapResult = await suiClient.dex.executeSwap({
                 chainId: params.chainId,
                 fromTokenAddress: params.fromTokenAddress,
                 toTokenAddress: params.toTokenAddress,
@@ -245,38 +305,23 @@ export class OKXDexService {
                 return { needsApproval: false, allowance: 'unlimited' };
             }
 
-            // Update EVM provider for the specific chain
-            const rpcUrl = this.getRpcUrl('evm', params.chainId);
-            const evmProvider = new ethers.JsonRpcProvider(rpcUrl);
-            const evmWallet = createEVMWallet(this.config.evmPrivateKey, evmProvider);
-
-            const client = new OKXDexClient({
-                apiKey: this.config.apiKey,
-                secretKey: this.config.secretKey,
-                apiPassphrase: this.config.apiPassphrase,
-                projectId: this.config.projectId,
-                evm: {
-                    wallet: evmWallet
-                }
-            });
+            // Create client on-demand
+            const client = await this.createEvmClient(params.chainId);
 
             // Check current allowance first
             try {
                 const allowanceResult = await client.dex.executeApproval({
                     chainId: params.chainId,
                     tokenContractAddress: params.tokenAddress,
-                    approveAmount: params.amount // Just to check, we'll approve max later
+                    approveAmount: params.amount
                 });
 
                 if ('alreadyApproved' in allowanceResult) {
-                    // Check if current allowance is sufficient for the amount
-                    // If it's a very large number, consider it as infinity approval
                     return { needsApproval: false, allowance: 'sufficient', currentAllowance: 'approved' };
                 } else {
                     return { needsApproval: true, allowance: '0', currentAllowance: '0' };
                 }
             } catch (error: any) {
-                // If checking fails, assume approval is needed
                 console.log('Could not check current allowance, assuming approval needed');
                 return { needsApproval: true, allowance: '0', currentAllowance: 'unknown' };
             }
@@ -295,26 +340,13 @@ export class OKXDexService {
             console.log(`Executing INFINITY approval for token ${params.tokenAddress}`);
             console.log(`Using max uint256: ${this.MAX_UINT256}`);
 
-            // Update EVM provider for the specific chain
-            const rpcUrl = this.getRpcUrl('evm', params.chainId);
-            const evmProvider = new ethers.JsonRpcProvider(rpcUrl);
-            const evmWallet = createEVMWallet(this.config.evmPrivateKey, evmProvider);
+            // Create client on-demand
+            const client = await this.createEvmClient(params.chainId);
 
-            const client = new OKXDexClient({
-                apiKey: this.config.apiKey,
-                secretKey: this.config.secretKey,
-                apiPassphrase: this.config.apiPassphrase,
-                projectId: this.config.projectId,
-                evm: {
-                    wallet: evmWallet
-                }
-            });
-
-            // Use MAX_UINT256 for infinity approval
             const result = await client.dex.executeApproval({
                 chainId: params.chainId,
                 tokenContractAddress: params.tokenAddress,
-                approveAmount: this.MAX_UINT256 // Approve maximum amount
+                approveAmount: this.MAX_UINT256
             });
 
             if ('alreadyApproved' in result) {
@@ -358,20 +390,38 @@ export class OKXDexService {
         return value.toFixed(6);
     }
 
-    // Utility method to get max uint256 for infinity approvals
     getMaxUint256(): string {
         return this.MAX_UINT256;
     }
 
-    // Check if an amount represents infinity approval
     isInfinityApproval(amount: string): boolean {
-        // Consider amounts close to max uint256 as infinity
-        const threshold = BigInt(this.MAX_UINT256) / BigInt(2); // Half of max uint256
+        const threshold = BigInt(this.MAX_UINT256) / BigInt(2);
         try {
             return BigInt(amount) >= threshold;
         } catch {
             return false;
         }
+    }
+
+    // Optional: Utility method to check if dependencies are available
+    async checkDependencies(): Promise<{ okxSdk: boolean; evmWallet: boolean }> {
+        const result = { okxSdk: false, evmWallet: false };
+
+        try {
+            await import('@okx-dex/okx-dex-sdk');
+            result.okxSdk = true;
+        } catch (error) {
+            console.warn('OKX DEX SDK not available:', error);
+        }
+
+        try {
+            await import('./evm-wallet');
+            result.evmWallet = true;
+        } catch (error) {
+            console.warn('EVM wallet utility not available:', error);
+        }
+
+        return result;
     }
 }
 
