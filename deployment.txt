@@ -1,0 +1,26 @@
+Ethereum Mainnet
+================================================
+
+INTENT_RFQ= 0x9feb0D7447081835d058D4a9de4F89f4651586Cb
+RESOLVER_REGISTRY= 0x96D188A974a3d43578eE55da240361c72A7b1610
+
+Base Mainnet
+================================================
+
+INTENT_RFQ: 0xfC44EF149b458Bab72A4AE6F870CaBf7575D955e
+RESOLVER_REGISTRY: 0x49067a1b9F07ac6b2Df9eB95e649A796B16478a6
+
+Optimism Mainnet
+================================================
+
+INTENT_RFQ: 0x38170B724fa94B48AAA52dCd45438Da718138550
+RESOLVER_REGISTRY: 0x9DaBaFa492188093116cfEDee1b13aD76b1c1742
+  
+Sui Mainnet
+================================================
+
+Package ID: 0x2fa86cb35a443fe6ef0c534d1c6f1b8f05750c9043e39548ae708dda8a499337
+ResolverRegistry: 0xe0c5ffb28451df890ec67a46323c83c0ff140b96766d642e5d0936cd9b49bb49
+IntentRFQ: 0xb63acdb64625249e861f3392546bce6d83f34b8708863608f5c359809e9ef358
+Test Token Type: 0x2fa86cb35a443fe6ef0c534d1c6f1b8f05750c9043e39548ae708dda8a499337::test_token::TEST_TOKEN
+TestTokenCap: 0x8401244f911554792064c4778ef19b2db1b52d869658f12759bb6b76cf202f94

@@ -29,7 +29,6 @@ export class OrderManager {
       await this.client.models.Order.update({
         id: orderId,
         status,
-        updatedAt: new Date().toISOString(),
         ...additionalFields
       });
       

@@ -6,8 +6,8 @@ import "../src/ResolverRegistry.sol";
 
 contract RegisterResolverScript is Script {
 
-    address constant RESOLVER_REGISTRY = 0x10FeBd90D273858Af2B7d93094b1822838ddC511; 
-    address constant NEW_RESOLVER = 0x91C65f404714Ac389b38335CccA4A876a8669d32;
+    address constant RESOLVER_REGISTRY = 0xB9776f58B4B86c1B13f1A1b43E22EC823b2FbB68; 
+    address constant NEW_RESOLVER = 0x3000000000000000000000000000000000000002;
 
     function run() external {
         string memory privateKeyString = vm.envString("PRIVATE_KEY");

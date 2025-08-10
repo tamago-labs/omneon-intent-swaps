@@ -29,7 +29,7 @@ contract DeployIntentRFQ is Script {
         address deployer = vm.addr(deployerPrivateKey);
         
         console.log("===========================================");
-        console.log("Deploying IntentRFQ to testnet");
+        console.log("Deploying IntentRFQ");
         console.log("===========================================");
         console.log("Chain ID:", block.chainid);
         console.log("Deployer address:", deployer);
@@ -48,7 +48,7 @@ contract DeployIntentRFQ is Script {
         console.log("IntentRFQ deployed at:", address(intentRFQ));
         
         // Register some test resolvers
-        address testResolver1 = 0x1000000000000000000000000000000000000001;
+        address testResolver1 = 0xee098fEA55039762bC5db10a512588a33e9F965E;
         address testResolver2 = 0x2000000000000000000000000000000000000002;
         
         resolverRegistry.registerResolver(testResolver1);
