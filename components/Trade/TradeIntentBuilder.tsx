@@ -46,15 +46,15 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
 
   // Core state
   const [mode, setMode] = useState<'same-chain' | 'cross-chain'>('same-chain');
-  const [amount, setAmount] = useState('100');
+  const [amount, setAmount] = useState('1');
   const [sourceToken, setSourceToken] = useState('WETH');
-  const [sourceChain, setSourceChain] = useState('Ethereum');
+  const [sourceChain, setSourceChain] = useState('SUI');
   const [targetToken, setTargetToken] = useState('USDC');
-  const [targetChain, setTargetChain] = useState('Ethereum');
+  const [targetChain, setTargetChain] = useState('SUI');
 
   // Advanced settings
   const [slippage, setSlippage] = useState('0.5');
-  const [deadline, setDeadline] = useState('20');
+  const [deadline, setDeadline] = useState('40');
   const [condition, setCondition] = useState('immediately at market rate');
   const [hasCondition, setHasCondition] = useState(true);
 
@@ -686,13 +686,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                 )}
               </div>
               <div className="text-xl font-bold text-white">≈ {rateData.estimatedOutput} {targetToken}</div>
-              <div className={`text-sm ${
-                rateData.source === 'pyth' ? 'text-green-400' : 
-                rateData.source === 'fallback' ? 'text-yellow-400' : 'text-blue-400'
-              }`}>
-                {rateData.source === 'pyth' ? '🔮 Live from Pyth Oracle' : 
-                 rateData.source === 'fallback' ? '⚡ Fallback pricing' : 'Live from OKX'}
-              </div>
+               
             </div>
 
             {/* Current Exchange Rate */}
@@ -706,10 +700,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
               </div>
               <div className="text-xl font-bold text-white">
                 1 {sourceToken} = {rateData.currentRate} {targetToken}
-              </div>
-              <div className="text-green-400 text-sm">
-                Price Impact: {rateData.priceImpact}
-              </div>
+              </div> 
             </div>
 
             {/* Minimum Received */}
@@ -719,9 +710,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                 Min. Received
               </div>
               <div className="text-xl font-bold text-white">{rateData.minReceived} {targetToken}</div>
-              <div className="text-yellow-400 text-sm">
-                After {rateData.slippage} slippage
-              </div>
+              
             </div>
 
             {/* Execution Time */}
@@ -731,52 +720,11 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                 Execution Time
               </div>
               <div className="text-xl font-bold text-white">{rateData.executionTime}</div>
-              <div className="text-purple-400 text-sm">
-                {mode === 'cross-chain' ? 'Cross-chain' : 'Same-chain'}
-              </div>
+              
             </div>
           </div>
 
-          {/* Route and Details */}
-          {/* <div className="bg-slate-700/20 rounded-lg p-4 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> 
-              <div>
-                <div className="text-slate-400 text-sm mb-2 flex items-center gap-2">
-                  <BarChart3 size={14} />
-                  Execution Route
-                </div>
-                <div className="flex items-center gap-2 text-white">
-                  {rateData.route.map((step, index) => (
-                    <React.Fragment key={index}>
-                      <span className="bg-blue-500/20 px-2 py-1 rounded text-sm">{step}</span>
-                      {index < rateData.route.length - 1 && (
-                        <ArrowRight size={14} className="text-slate-400" />
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
- 
-              <div>
-                <div className="text-slate-400 text-sm mb-2">Transaction Settings</div>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Max Slippage:</span>
-                    <span className="text-white">{rateData.slippage}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Deadline:</span>
-                    <span className="text-white">{deadline} minutes</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-400">Protocol Fee:</span>
-                    <span className="text-white">0.3%</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div> */}
-
+           
           {/* Create Order Button */}
           <div className="text-center">
             <motion.button
@@ -839,13 +787,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                     {pendingOrderData.mode === 'cross-chain' && ` on ${pendingOrderData.destChain}`}
                   </div>
                 </div>
-
-                <div className="bg-slate-700/50 rounded-lg p-4">
-                  <div className="text-slate-400 text-sm mb-2">Execution Type</div>
-                  <div className="text-white font-medium">
-                    {pendingOrderData.mode === 'cross-chain' ? 'Cross-Chain Bridge' : 'Same-Chain Swap'}
-                  </div>
-                </div>
+ 
 
                 {pendingOrderData.needsApproval && sourceChain !== 'SUI' && (
                   <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
@@ -856,16 +798,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                     <div className="text-white text-sm">This transaction will first approve token spending, then create the order.</div>
                   </div>
                 )}
-
-                {sourceChain === 'SUI' && (
-                  <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-blue-400 text-sm mb-1">
-                      <Info size={16} />
-                      SUI Network Transaction
-                    </div>
-                    <div className="text-white text-sm">This transaction will be executed on the SUI network using your connected SUI wallet.</div>
-                  </div>
-                )}
+ 
 
                 {pendingOrderData.condition && (
                   <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">

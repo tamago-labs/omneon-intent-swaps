@@ -61,23 +61,7 @@ const ResolverCard: React.FC<ResolverCardProps> = ({ resolver, rank, onClick }) 
         {/* <div className="text-right">
           <div className="text-slate-400 text-sm">Rank</div>
           <div className="text-2xl font-bold text-white">#{rank}</div>
-        </div> */}
-        <div className='grid grid-cols-3 md:grid-cols-3 gap-4'>
-        <div className="text-center">
-          <div className="text-white font-bold">
-            {utils.formatPercentage(resolver.successRate)}
-          </div>
-          <div className="text-slate-400 text-xs">Success Rate</div>
-        </div>
-        <div className="text-center">
-          <div className="text-white font-bold">{resolver && resolver.avgExecutionTime ? resolver.avgExecutionTime.toFixed(1) : 40}s</div>
-          <div className="text-slate-400 text-xs">Avg Execution</div>
-        </div>
-        <div className="text-center">
-          <div className="text-white font-bold">{resolver.totalExecuted}</div>
-          <div className="text-slate-400 text-xs">Orders</div>
-        </div>
-        </div>
+        </div> */} 
       </div>
 
       {/* Description */}

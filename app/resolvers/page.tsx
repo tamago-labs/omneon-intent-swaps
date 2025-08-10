@@ -209,26 +209,7 @@ const ResolversPage = () => {
             </button>
           </div>
         </motion.div>
-
-        {/* Platform Stats */}
-        {/* {platformStats && <PlatformStats stats={platformStats} />} */}
-
-        {/* Filters */}
-        {/* <ResolverFilters
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          sortOrder={sortOrder}
-          onSortOrderChange={setSortOrder}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-          countryFilter={countryFilter}
-          onCountryFilterChange={setCountryFilter}
-          countries={countries}
-        /> */}
+ 
 
         {/* Results Summary */}
         <motion.div

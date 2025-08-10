@@ -85,8 +85,9 @@ export const getTokenPrice = async (tokenSymbol: string): Promise<number> => {
   if (['USDC', 'USDT', 'DAI', 'FRAX'].includes(tokenSymbol.toUpperCase())) {
     return 1.0;
   }
-
+ 
   const priceId = TOKEN_TO_PYTH_FEED[tokenSymbol.toUpperCase()];
+ 
   
   if (!priceId) {
     console.warn(`No Pyth price feed found for token: ${tokenSymbol}, defaulting to $1.00`);
@@ -136,12 +137,13 @@ export const getMultipleTokenPrices = async (tokenSymbols: string[]): Promise<Re
     .filter((id): id is string => id !== null && id !== undefined);
 
   if (priceIds.length > 0) {
-    try {
+    try { 
       const result = await getLatestPriceUpdates(priceIds);
+ 
       
       if (result.success && result.prices) {
         result.prices.forEach(priceData => {
-          const symbol = getSymbolFromPriceId(priceData.id);
+          const symbol = getSymbolFromPriceId(`0x${priceData.id}`);
           if (symbol) {
             priceMap[symbol] = priceData.price;
           }

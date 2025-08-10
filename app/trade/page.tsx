@@ -80,26 +80,7 @@ const TradePage = () => {
               showHeader={false} 
               onCreateIntent={handleCreateIntent}
               className="mb-8"
-            />
-
-            {/* Trading Information */}
-            <motion.div
-              className="bg-green-500/10 border border-green-500/30 rounded-lg p-4"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <div className="flex items-center gap-2 text-green-400 mb-2">
-                <Shield size={16} />
-                <span className="font-medium">Resolver-Based Architecture</span>
-              </div>
-              <div className="text-slate-300 text-sm space-y-1">
-                <p>• All trades are executed by trusted resolvers who hold inventory</p>
-                <p>• Same-chain: Resolvers use DEX aggregation for optimal rates</p>
-                <p>• Cross-chain: Specialized resolvers handle secure bridging</p>
-                <p>• Your tokens are sent to resolvers who execute based on your conditions</p>
-              </div>
-            </motion.div>
+            /> 
           </div> 
         </div>
       </div>

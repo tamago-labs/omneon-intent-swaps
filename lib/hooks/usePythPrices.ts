@@ -82,8 +82,9 @@ export const useMultipleTokenPrices = (tokenSymbols: string[], refreshInterval =
     try {
       setLoading(true);
       setError(null);
-
+ 
       const priceData = await getMultipleTokenPrices(tokenSymbols);
+
       const now = new Date();
       
       const formattedPrices: Record<string, TokenPrice> = {};
@@ -183,9 +184,12 @@ export const usePythConversion = (
  * Hook to get live token prices for display in token selection
  */
 export const useTokenPricesForDisplay = (tokenSymbols: string[]) => {
+
   const { prices, loading, error } = useMultipleTokenPrices(tokenSymbols, 60000); // Refresh every minute
 
   const getPriceForToken = useCallback((symbol: string): string => {
+ 
+
     const tokenPrice = prices[symbol];
     if (!tokenPrice) return '$1.00'; // Fallback
     
@@ -218,7 +222,7 @@ export const useTokenPricesForDisplay = (tokenSymbols: string[]) => {
 };
 
 /**
- * Hook to calculate estimated output with Pyth prices (fallback to OKX if needed)
+ * Hook to calculate estimated output with Pyth prices
  */
 export const useEstimatedOutput = (
   sourceToken: string,
