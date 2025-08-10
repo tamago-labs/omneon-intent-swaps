@@ -1,8 +1,8 @@
 Ethereum Mainnet
 ================================================
 
-INTENT_RFQ= 0x9feb0D7447081835d058D4a9de4F89f4651586Cb
-RESOLVER_REGISTRY= 0x96D188A974a3d43578eE55da240361c72A7b1610
+INTENT_RFQ: 0x9feb0D7447081835d058D4a9de4F89f4651586Cb
+RESOLVER_REGISTRY: 0x96D188A974a3d43578eE55da240361c72A7b1610
 
 Base Mainnet
 ================================================

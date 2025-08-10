@@ -1,4 +1,5 @@
 import { OrderData, ProcessingResult, ChainType } from '../types';
+import { OKXDexService, OKXConfig, CHAIN_IDS, TOKEN_ADDRESSES } from '../okx-dex-service';
 
 export abstract class BaseChainProcessor {
   abstract processOrder(order: OrderData): Promise<ProcessingResult>;
@@ -20,24 +21,36 @@ export abstract class BaseChainProcessor {
 }
 
 export class SameChainProcessor extends BaseChainProcessor {
+  private okxService: OKXDexService;
+
+  constructor() {
+    super();
+    
+    // Initialize OKX DEX service with environment variables
+    const config: OKXConfig = {
+      apiKey: process.env.OKX_API_KEY!,
+      secretKey: process.env.OKX_SECRET_KEY!,
+      apiPassphrase: process.env.OKX_API_PASSPHRASE!,
+      projectId: process.env.OKX_PROJECT_ID!,
+      evmRpcUrl: process.env.EVM_RPC_URL!,
+      evmPrivateKey: process.env.EVM_RESOLVER_PRIVATE_KEY!,
+      suiRpcUrl: process.env.SUI_RPC_URL!,
+      suiPrivateKey: process.env.SUI_RESOLVER_PRIVATE_KEY!,
+      suiWalletAddress: process.env.SUI_RESOLVER_ADDRESS!
+    };
+    
+    this.okxService = new OKXDexService(config);
+  }
   
   async processOrder(order: OrderData): Promise<ProcessingResult> {
     console.log(`Processing same-chain order ${order.id}`);
     
     try {
-      // Calculate output after fees
-      const outputAmount = this.calculateOutputAmount(order.amountIn);
-      
-      // Validate minimum output
-      if (!this.validateMinimumOutput(outputAmount, order.minAmountOut)) {
-        throw new Error(`Output amount ${outputAmount} is less than minimum required ${order.minAmountOut}`);
-      }
-
       // Route to appropriate chain processor
       if (order.sourceChainType === ChainType.EVM) {
-        return await this.processEvmSameChainSwap(order, outputAmount);
+        return await this.processEvmSameChainSwap(order);
       } else if (order.sourceChainType === ChainType.SUI) {
-        return await this.processSuiSameChainSwap(order, outputAmount);
+        return await this.processSuiSameChainSwap(order);
       } else {
         throw new Error(`Unsupported chain type for same-chain swap: ${order.sourceChainType}`);
       }
@@ -69,80 +82,150 @@ export class SameChainProcessor extends BaseChainProcessor {
     }
   }
 
-  private async processEvmSameChainSwap(order: OrderData, outputAmount: bigint): Promise<ProcessingResult> {
+  private async processEvmSameChainSwap(order: OrderData): Promise<ProcessingResult> {
     console.log(`Processing EVM same-chain swap for ${order.sourceTokenSymbol} -> ${order.destTokenSymbol}`);
     
-    // TODO: Implement actual DEX aggregator integration
-    // This would typically involve:
-    // 1. Get best swap route from DEX aggregator (1inch, 0x, etc.)
-    // 2. Execute swap transaction on the EVM chain
-    // 3. Transfer result to recipient
-    
-    // Mock implementation
-    await this.simulateDelay(2000);
-    
-    const txHash = this.generateMockTxHash();
-    console.log(`EVM same-chain swap completed with tx: ${txHash}`);
-    
-    return {
-      success: true,
-      txHash,
-      actualAmountOut: outputAmount.toString()
-    };
+    try {
+      // Map chain ID to OKX chain ID format
+      const chainId = this.getOkxChainId(order.sourceChainId);
+      
+      // First get a quote to validate the swap and check rates
+      const quote = await this.okxService.getQuote({
+        chainId,
+        fromTokenAddress: order.sourceTokenAddress,
+        toTokenAddress: order.destTokenAddress,
+        amount: order.amountIn,
+        slippage: '0.005' // 0.5% slippage
+      });
+
+      console.log(`Quote received: ${quote.fromToken.tokenSymbol} -> ${quote.toToken.tokenSymbol}`);
+      console.log(`Expected output: ${quote.toToken.amount}`);
+
+      // Validate minimum output requirement
+      const expectedOutput = BigInt(quote.toToken.amount);
+      if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
+        throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
+      }
+
+      // Execute the swap
+      const swapResult = await this.okxService.executeEvmSwap({
+        chainId,
+        fromTokenAddress: order.sourceTokenAddress,
+        toTokenAddress: order.destTokenAddress,
+        amount: order.amountIn,
+        userWalletAddress: order.recipientAddress,
+        slippage: '0.005'
+      });
+
+      console.log(`EVM same-chain swap completed with tx: ${swapResult.transactionHash}`);
+      
+      return {
+        success: true,
+        txHash: swapResult.transactionHash,
+        actualAmountOut: quote.toToken.amount
+      };
+    } catch (error: any) {
+      console.error('EVM swap error:', error);
+      throw error;
+    }
   }
 
-  private async processSuiSameChainSwap(order: OrderData, outputAmount: bigint): Promise<ProcessingResult> {
+  private async processSuiSameChainSwap(order: OrderData): Promise<ProcessingResult> {
     console.log(`Processing SUI same-chain swap for ${order.sourceTokenSymbol} -> ${order.destTokenSymbol}`);
     
-    // TODO: Implement actual SUI DEX integration
-    // This would typically involve:
-    // 1. Get best swap route from SUI DEX (Cetus, Turbos, etc.)
-    // 2. Execute swap transaction on SUI
-    // 3. Transfer result to recipient
-    
-    // Mock implementation
-    await this.simulateDelay(2000);
-    
-    const txHash = this.generateMockTxHash();
-    console.log(`SUI same-chain swap completed with tx: ${txHash}`);
-    
-    return {
-      success: true,
-      txHash,
-      actualAmountOut: outputAmount.toString()
-    };
+    try {
+      const chainId = CHAIN_IDS.SUI_MAINNET;
+      
+      // Get quote first
+      const quote = await this.okxService.getQuote({
+        chainId,
+        fromTokenAddress: order.sourceTokenAddress,
+        toTokenAddress: order.destTokenAddress,
+        amount: order.amountIn,
+        slippage: '0.005'
+      });
+
+      console.log(`SUI Quote received: ${quote.fromToken.tokenSymbol} -> ${quote.toToken.tokenSymbol}`);
+      console.log(`Expected output: ${quote.toToken.amount}`);
+
+      // Validate minimum output
+      const expectedOutput = BigInt(quote.toToken.amount);
+      if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
+        throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
+      }
+
+      // Execute the swap
+      const swapResult = await this.okxService.executeSuiSwap({
+        chainId,
+        fromTokenAddress: order.sourceTokenAddress,
+        toTokenAddress: order.destTokenAddress,
+        amount: order.amountIn,
+        userWalletAddress: order.recipientAddress,
+        slippage: '0.005'
+      });
+
+      console.log(`SUI same-chain swap completed with tx: ${swapResult.transactionId}`);
+      
+      return {
+        success: true,
+        txHash: swapResult.transactionId,
+        actualAmountOut: quote.toToken.amount
+      };
+    } catch (error: any) {
+      console.error('SUI swap error:', error);
+      throw error;
+    }
   }
 
   private async refundEvmOrder(order: OrderData): Promise<ProcessingResult> {
     console.log(`Refunding EVM order to ${order.senderAddress}`);
     
-    // TODO: Implement actual EVM refund transaction
-    // Send tokens back to senderAddress
-    
-    await this.simulateDelay(1000);
-    const txHash = this.generateMockTxHash();
-    
-    return {
-      success: true,
-      txHash,
-      actualAmountOut: order.amountIn // Full refund
-    };
+    try {
+      // TODO: Implement actual EVM refund transaction
+      await this.simulateDelay(1000);
+      const txHash = this.generateMockTxHash();
+      
+      console.log(`EVM refund completed with tx: ${txHash}`);
+      
+      return {
+        success: true,
+        txHash,
+        actualAmountOut: order.amountIn // Full refund
+      };
+    } catch (error: any) {
+      throw new Error(`EVM refund failed: ${error.message}`);
+    }
   }
 
   private async refundSuiOrder(order: OrderData): Promise<ProcessingResult> {
     console.log(`Refunding SUI order to ${order.senderAddress}`);
     
-    // TODO: Implement actual SUI refund transaction
-    // Send tokens back to senderAddress
-    
-    await this.simulateDelay(1000);
-    const txHash = this.generateMockTxHash();
-    
-    return {
-      success: true,
-      txHash,
-      actualAmountOut: order.amountIn // Full refund
-    };
+    try {
+      // TODO: Implement actual SUI refund transaction
+      await this.simulateDelay(1000);
+      const txHash = this.generateMockTxHash();
+      
+      console.log(`SUI refund completed with tx: ${txHash}`);
+      
+      return {
+        success: true,
+        txHash,
+        actualAmountOut: order.amountIn // Full refund
+      };
+    } catch (error: any) {
+      throw new Error(`SUI refund failed: ${error.message}`);
+    }
+  }
+
+  private getOkxChainId(chainId: number): string {
+    switch (chainId) {
+      case 1: return CHAIN_IDS.ETHEREUM;
+      case 8453: return CHAIN_IDS.BASE;
+      case 10: return CHAIN_IDS.OPTIMISM;
+      case 137: return CHAIN_IDS.POLYGON;
+      case 42161: return CHAIN_IDS.ARBITRUM;
+      default: throw new Error(`Unsupported chain ID: ${chainId}`);
+    }
   }
 
   private async simulateDelay(ms: number): Promise<void> {

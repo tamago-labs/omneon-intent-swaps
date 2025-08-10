@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, TrendingUp, Zap, Clock, ArrowRight, Shield, Settings, Info, AlertCircle, CheckCircle, Wallet } from 'lucide-react';
+import { X, TrendingUp, Zap, Clock, ArrowRight, Shield, Settings, Info, AlertCircle, CheckCircle, Wallet, BarChart3, Target } from 'lucide-react';
 import { orderAPI } from '@/lib/api';
 import { useWalletType } from '@/lib/wallet-type-context';
 import { useResolvers } from '@/lib/hooks/useResolvers';
 import { useTokenBalance, useTokenAllowance, useFeeCalculation, useTokenApproval, useCreateOrder, formatTokenAmount, parseTokenAmount, checkNeedsApproval } from '@/lib/hooks/useContracts';
 import { useCreateIntentOrder } from '@/lib/hooks/useCreateIntentOrder';
 import { getTokensForChain, ChainType, getTokenAddress, getContractsForChain } from '@/lib/contracts';
+import { useRate } from '@/lib/hooks/useRate';
 import { Address } from 'viem';
 import { useRouter } from 'next/navigation';
 
@@ -68,7 +69,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
 
   // Get token info
-  const sourceTokenInfo = sourceChain === 'SUI' 
+  const sourceTokenInfo = sourceChain === 'SUI'
     ? getSuiTokenBySymbol(sourceToken)
     : getTokensForChain(sourceChain).find(t => t.symbol === sourceToken);
   const targetTokenInfo = targetChain === 'SUI'
@@ -76,7 +77,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     : getTokensForChain(targetChain).find(t => t.symbol === targetToken);
 
   // Get contracts for current source chain
-  const currentContracts = sourceChain !== 'SUI' ? getContractsForChain(sourceChain) : null;
+  const currentContracts: any = sourceChain !== 'SUI' ? getContractsForChain(sourceChain) : null;
 
   // Contract hooks - get token balances dynamically based on selected chain
   const wethBalance: any = useTokenBalance(
@@ -104,7 +105,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     if (sourceChain === 'SUI') {
       return suiBalances[sourceToken] || '0.000000';
     }
-    
+
     // For EVM chains, get balance based on token symbol
     if (sourceToken === 'WETH' && wethBalance.data && sourceTokenInfo) {
       return formatTokenAmount(wethBalance.data, sourceTokenInfo.decimals);
@@ -131,7 +132,6 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     return checkNeedsApproval(allowance as bigint, amountInWei);
   };
 
-
   // Chain configurations
   const sameChainNetworks = [
     { name: 'Ethereum', logo: 'https://s2.coinmarketcap.com/static/img/coins/64x64/1027.png' },
@@ -145,38 +145,38 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     { name: 'SUI', logo: 'https://s2.coinmarketcap.com/static/img/coins/64x64/20947.png' }
   ];
 
-  const tokens = sourceChain === 'SUI' 
+  const tokens = sourceChain === 'SUI'
     ? SUI_TOKENS.MAINNET.map(token => ({
+      name: token.symbol,
+      price: '$1.00',
+      icon: token.icon,
+      balance: suiBalances[token.symbol] || '0.000000',
+      address: token.type,
+      decimals: token.decimals
+    }))
+    : getTokensForChain(sourceChain).map(token => {
+      let balance = '0.00';
+
+      // Get balance based on token symbol
+      if (token.symbol === 'WETH' && wethBalance.data) {
+        balance = formatTokenAmount(wethBalance.data, token.decimals);
+      } else if (token.symbol === 'USDC' && usdcBalance.data) {
+        balance = formatTokenAmount(usdcBalance.data, token.decimals);
+      } else if (token.symbol === 'USDT' && usdtBalance.data) {
+        balance = formatTokenAmount(usdtBalance.data, token.decimals);
+      } else if (token.symbol === 'WBTC' && wbtcBalance.data) {
+        balance = formatTokenAmount(wbtcBalance.data, token.decimals);
+      }
+
+      return {
         name: token.symbol,
         price: '$1.00',
         icon: token.icon,
-        balance: suiBalances[token.symbol] || '0.000000',
-        address: token.type,
+        balance,
+        address: token.address,
         decimals: token.decimals
-      }))
-    : getTokensForChain(sourceChain).map(token => {
-        let balance = '0.00';
-        
-        // Get balance based on token symbol
-        if (token.symbol === 'WETH' && wethBalance.data) {
-          balance = formatTokenAmount(wethBalance.data, token.decimals);
-        } else if (token.symbol === 'USDC' && usdcBalance.data) {
-          balance = formatTokenAmount(usdcBalance.data, token.decimals);
-        } else if (token.symbol === 'USDT' && usdtBalance.data) {
-          balance = formatTokenAmount(usdtBalance.data, token.decimals);
-        } else if (token.symbol === 'WBTC' && wbtcBalance.data) {
-          balance = formatTokenAmount(wbtcBalance.data, token.decimals);
-        }
-        
-        return {
-          name: token.symbol,
-          price: '$1.00',
-          icon: token.icon,
-          balance,
-          address: token.address,
-          decimals: token.decimals
-        };
-      });
+      };
+    });
 
   const availableChains = mode === 'same-chain' ? sameChainNetworks : crossChainNetworks;
 
@@ -185,7 +185,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     if (mode === 'same-chain') {
       setTargetChain(sourceChain);
       setCondition(`immediately at market rate`);
-      
+
       // Reset tokens when switching chains
       if (sourceChain === 'SUI') {
         setSourceToken('WETH');
@@ -239,15 +239,44 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     'when arbitrage opportunity exists'
   ];
 
+  // Get real-time rate using OKX API
+  const { quote: rateQuote, loading: rateLoading, error: rateError } = useRate({
+    sourceChain,
+    sourceToken,
+    targetChain: mode === 'same-chain' ? sourceChain : targetChain,
+    targetToken,
+    amount: amount || '1',
+    refreshInterval: 30000, // Refresh every 30 seconds
+    enabled: !!(amount && parseFloat(amount) > 0)
+  });
+
+  // Calculate more useful rate data from OKX quote
   const rateData = {
-    currentRate: mode === 'cross-chain' ? '1,322.45' : '2.45',
-    priceChange: mode === 'cross-chain' ? '-5.8' : '+2.3',
-    volume24h: mode === 'cross-chain' ? '$12.5M' : '$15.2M',
-    estimatedOutput: mode === 'cross-chain'
-      ? (parseFloat(amount) * (sourceToken === 'SUI' ? 1322.45 : 0.000756)).toFixed(sourceToken === 'SUI' ? 2 : 6)
-      : (parseFloat(amount) * 2.45).toFixed(2),
-    networkFee: mode === 'cross-chain' ? '12.50' : '2.50',
-    executionTime: mode === 'cross-chain' ? '~2-5 min' : '~30s',
+    // Estimated output calculation
+    estimatedOutput: rateQuote
+      ? (parseFloat(rateQuote.toToken.amount) / Math.pow(10, rateQuote.toToken.decimals)).toFixed(6)
+      : mode === 'cross-chain'
+        ? (parseFloat(amount || '0') * (sourceToken === 'SUI' ? 1322.45 : 0.000756)).toFixed(sourceToken === 'SUI' ? 2 : 6)
+        : (parseFloat(amount || '0') * 2.45).toFixed(2),
+
+    // Current exchange rate
+    currentRate: rateQuote ? parseFloat(rateQuote.rate).toFixed(6) : (mode === 'cross-chain' ? '1,322.45' : '2.45'),
+
+    // Price impact from the actual quote
+    priceImpact: rateQuote?.priceImpact ? `${parseFloat(rateQuote.priceImpact).toFixed(3)}%` : '< 0.1%',
+
+    // Execution time based on mode
+    executionTime: mode === 'cross-chain' ? '2-5 min' : '15-45s',
+
+    // Expected value after slippage
+    minReceived: rateQuote
+      ? (parseFloat(rateQuote.toToken.amount) / Math.pow(10, rateQuote.toToken.decimals) * (1 - parseFloat(slippage) / 100)).toFixed(6)
+      : (parseFloat(amount || '0') * 2.45 * (1 - parseFloat(slippage) / 100)).toFixed(6),
+
+    // Route information
+    route: rateQuote?.route || (mode === 'cross-chain' ? ['Bridge', 'DEX'] : ['Uniswap V3']),
+
+    // Slippage setting
     slippage: `${slippage}%`
   };
 
@@ -293,7 +322,6 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   const selectOption = (value: string) => {
     setTempValue(value);
   };
-
 
   const handleCreateIntent = async () => {
     setError(null);
@@ -356,7 +384,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
 
     try {
       let result: any;
-      
+
       if (sourceChain === 'SUI') {
         // Handle SUI order creation
         result = await createSuiIntentOrder({
@@ -472,11 +500,10 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
           )}
 
           {/* Large Intent Display */}
-          <div className={`bg-slate-900/50 rounded-xl p-8 mb-8 pt-20 border relative group ${
-            sourceToken === targetToken && sourceChain === targetChain 
-              ? 'border-red-500/50 bg-red-500/5' 
+          <div className={`bg-slate-900/50 rounded-xl p-8 mb-8 pt-20 border relative group ${sourceToken === targetToken && sourceChain === targetChain
+              ? 'border-red-500/50 bg-red-500/5'
               : 'border-slate-600/30'
-          }`}>
+            }`}>
             {/* Same token warning */}
             {sourceToken === targetToken && sourceChain === targetChain && (
               <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-red-500/20 border border-red-500/50 rounded-lg px-3 py-1 flex items-center gap-2">
@@ -611,64 +638,100 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
             </div>
           </div>
 
-          {/* Rate Information with Balance Box */}
+          {/* Enhanced Rate Information Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {/* Balance Box */}
-            {/* <motion.div
-              className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 rounded-lg p-4 border border-blue-500/30 cursor-pointer hover:border-blue-400/50 transition-all"
-              onClick={() => setShowBalanceModal(true)}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <div className="text-slate-400 text-sm mb-1 flex items-center gap-1">
-                <Wallet size={14} />
-                Your Balance
+            {/* Expected Output */}
+            <div className="bg-slate-700/30 rounded-lg p-4">
+              <div className="text-slate-400 text-sm mb-1 flex items-center gap-2">
+                <Target size={14} />
+                You'll Receive
+                {rateLoading && (
+                  <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-400" />
+                )}
+              </div>
+              <div className="text-xl font-bold text-white">≈ {rateData.estimatedOutput} {targetToken}</div>
+              <div className="text-blue-400 text-sm">
+                {rateError ? 'Rate unavailable' : 'Live from OKX'}
+              </div>
+            </div>
+
+            {/* Current Exchange Rate */}
+            <div className="bg-slate-700/30 rounded-lg p-4">
+              <div className="text-slate-400 text-sm mb-1 flex items-center gap-2">
+                <TrendingUp size={14} />
+                Exchange Rate
               </div>
               <div className="text-xl font-bold text-white">
-                {getCurrentBalance()} {sourceToken}
+                1 {sourceToken} = {rateData.currentRate} {targetToken}
               </div>
-              <div className="text-blue-400 text-sm">Click for all balances</div>
-            </motion.div> */}
-
-            <div className="bg-slate-700/30 rounded-lg p-4">
-              <div className="text-slate-400 text-sm mb-1">You'll Receive</div>
-              <div className="text-xl font-bold text-white">≈ {rateData.estimatedOutput} {targetToken}</div>
-              <div className="text-blue-400 text-sm">Est. output</div>
-            </div>
-
-            <div className="bg-slate-700/30 rounded-lg p-4">
-              <div className="text-slate-400 text-sm mb-1">Execution Time</div>
-              <div className="text-xl font-bold text-white">{rateData.executionTime}</div>
-              <div className="text-blue-400 text-sm flex items-center gap-1">
-                <Clock size={14} />
-                Via resolver
+              <div className="text-green-400 text-sm">
+                Price Impact: {rateData.priceImpact}
               </div>
             </div>
 
-            {/* <div className="bg-slate-700/30 rounded-lg p-4">
-              <div className="text-slate-400 text-sm mb-1">Total Fee</div>
-              <div className="text-xl font-bold text-white">${rateData.networkFee}</div>
-              <div className="text-green-400 text-sm flex items-center gap-1">
+            {/* Minimum Received */}
+            <div className="bg-slate-700/30 rounded-lg p-4">
+              <div className="text-slate-400 text-sm mb-1 flex items-center gap-2">
                 <Shield size={14} />
-                0.3% + network
+                Min. Received
               </div>
-            </div> */}
+              <div className="text-xl font-bold text-white">{rateData.minReceived} {targetToken}</div>
+              <div className="text-yellow-400 text-sm">
+                After {rateData.slippage} slippage
+              </div>
+            </div>
+
+            {/* Execution Time */}
+            <div className="bg-slate-700/30 rounded-lg p-4">
+              <div className="text-slate-400 text-sm mb-1 flex items-center gap-2">
+                <Clock size={14} />
+                Execution Time
+              </div>
+              <div className="text-xl font-bold text-white">{rateData.executionTime}</div>
+              <div className="text-purple-400 text-sm">
+                {mode === 'cross-chain' ? 'Cross-chain' : 'Same-chain'}
+              </div>
+            </div>
           </div>
 
-          {/* Additional Details */}
+          {/* Route and Details */}
           <div className="bg-slate-700/20 rounded-lg p-4 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-400">Current Rate:</span>
-                <span className="text-white">1 {sourceToken} = {rateData.currentRate} {targetToken}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Route Information */}
+              <div>
+                <div className="text-slate-400 text-sm mb-2 flex items-center gap-2">
+                  <BarChart3 size={14} />
+                  Execution Route
+                </div>
+                <div className="flex items-center gap-2 text-white">
+                  {rateData.route.map((step, index) => (
+                    <React.Fragment key={index}>
+                      <span className="bg-blue-500/20 px-2 py-1 rounded text-sm">{step}</span>
+                      {index < rateData.route.length - 1 && (
+                        <ArrowRight size={14} className="text-slate-400" />
+                      )}
+                    </React.Fragment>
+                  ))}
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Max Slippage:</span>
-                <span className="text-white">{rateData.slippage}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Deadline:</span>
-                <span className="text-white">{deadline} minutes</span>
+
+              {/* Transaction Details */}
+              <div>
+                <div className="text-slate-400 text-sm mb-2">Transaction Settings</div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Max Slippage:</span>
+                    <span className="text-white">{rateData.slippage}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Deadline:</span>
+                    <span className="text-white">{deadline} minutes</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Protocol Fee:</span>
+                    <span className="text-white">0.3%</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -676,11 +739,10 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
           {/* Create Order Button */}
           <div className="text-center">
             <motion.button
-              className={`bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 mx-auto ${
-                isSubmitting || isSuiSubmitting || orderState !== 'idle' || suiOrderState !== 'idle' || (sourceToken === targetToken && sourceChain === targetChain)
-                  ? 'opacity-50 cursor-not-allowed' 
+              className={`bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-semibold px-8 py-4 rounded-xl text-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 mx-auto ${isSubmitting || isSuiSubmitting || orderState !== 'idle' || suiOrderState !== 'idle' || (sourceToken === targetToken && sourceChain === targetChain)
+                  ? 'opacity-50 cursor-not-allowed'
                   : ''
-              }`}
+                }`}
               whileHover={!isSubmitting && !isSuiSubmitting && orderState === 'idle' && suiOrderState === 'idle' && !(sourceToken === targetToken && sourceChain === targetChain) ? { scale: 1.05, y: -2 } : {}}
               whileTap={!isSubmitting && !isSuiSubmitting && orderState === 'idle' && suiOrderState === 'idle' && !(sourceToken === targetToken && sourceChain === targetChain) ? { scale: 0.95 } : {}}
               onClick={handleCreateIntent}
@@ -701,7 +763,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                   {sourceChain === 'SUI' ? 'Create SUI Intent Order' : (needsApproval(amount || '0') ? 'Approve & Create Order' : 'Create Intent Order')}
                   <ArrowRight size={20} />
                 </>
-              )}  
+              )}
             </motion.button>
             <p className="text-slate-400 text-sm mt-3">
               {mode === 'cross-chain' ? 'Cross-chain bridging' : 'Same-chain swapping'} • 0.3% protocol fee • Cancel anytime before execution
@@ -710,64 +772,8 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
         </motion.div>
       </div>
 
-      {/* Token Balance Modal */}
+      {/* Modals */}
       <AnimatePresence>
-        {showBalanceModal && (
-          <motion.div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowBalanceModal(false)}
-          >
-            <motion.div
-              className="bg-slate-800 rounded-2xl border border-slate-600 p-6 max-w-md w-full shadow-2xl"
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h4 className="text-xl font-semibold text-white flex items-center gap-2">
-                  <Wallet size={24} />
-                  Token Balances
-                </h4>
-                <button
-                  onClick={() => setShowBalanceModal(false)}
-                  className="text-slate-400 hover:text-white transition-colors"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                <div className="text-slate-400 text-sm mb-3">
-                  {sourceChain} Tokens
-                </div>
-                {tokens.map((token) => (
-                  <div
-                    key={token.name}
-                    className="bg-slate-700/50 rounded-lg p-4 flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-3">
-                      <img src={token.icon} alt={token.name} className="w-8 h-8 rounded-full" />
-                      <div>
-                        <div className="font-medium text-white">{token.name}</div>
-                        <div className="text-sm text-slate-400">{token.price}</div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-medium text-white">{token.balance}</div>
-                      <div className="text-sm text-slate-400">
-                        {token.balance === '0.00' ? 'No balance' : 'Available'}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
         {showConfirmModal && pendingOrderData && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div
@@ -781,26 +787,26 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                 <div className="bg-slate-700/50 rounded-lg p-4">
                   <div className="text-slate-400 text-sm mb-2">You're Trading</div>
                   <div className="text-white font-medium">
-                    {(pendingOrderData as any).amount} {(pendingOrderData as any).sourceToken} on {(pendingOrderData as any).sourceChain}
+                    {pendingOrderData.amount} {pendingOrderData.sourceToken} on {pendingOrderData.sourceChain}
                   </div>
                 </div>
 
                 <div className="bg-slate-700/50 rounded-lg p-4">
                   <div className="text-slate-400 text-sm mb-2">You'll Receive</div>
                   <div className="text-white font-medium">
-                    ≈ {(pendingOrderData as any).estimatedOutput} {(pendingOrderData as any).targetToken}
-                    {(pendingOrderData as any).mode === 'cross-chain' && ` on ${(pendingOrderData as any).targetChain}`}
+                    ≈ {pendingOrderData.estimatedOutput} {pendingOrderData.destToken}
+                    {pendingOrderData.mode === 'cross-chain' && ` on ${pendingOrderData.destChain}`}
                   </div>
                 </div>
 
                 <div className="bg-slate-700/50 rounded-lg p-4">
                   <div className="text-slate-400 text-sm mb-2">Execution Type</div>
                   <div className="text-white font-medium">
-                    {(pendingOrderData as any).mode === 'cross-chain' ? 'Cross-Chain Bridge' : 'Same-Chain Swap'}
+                    {pendingOrderData.mode === 'cross-chain' ? 'Cross-Chain Bridge' : 'Same-Chain Swap'}
                   </div>
                 </div>
 
-                {(pendingOrderData as any).needsApproval && sourceChain !== 'SUI' && (
+                {pendingOrderData.needsApproval && sourceChain !== 'SUI' && (
                   <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
                     <div className="flex items-center gap-2 text-yellow-400 text-sm mb-1">
                       <AlertCircle size={16} />
@@ -820,13 +826,13 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                   </div>
                 )}
 
-                {(pendingOrderData as any).condition && (
+                {pendingOrderData.condition && (
                   <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
                     <div className="flex items-center gap-2 text-blue-400 text-sm mb-1">
                       <Info size={16} />
                       Execution Condition
                     </div>
-                    <div className="text-white">{(pendingOrderData as any).condition}</div>
+                    <div className="text-white">{pendingOrderData.condition}</div>
                   </div>
                 )}
 
@@ -838,20 +844,14 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                       <span className="text-white">0.3%</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">Network Fee:</span>
-                      <span className="text-white">
-                        ${(pendingOrderData as any).mode === 'cross-chain' ? '12.50' : '2.50'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
                       <span className="text-slate-400">Est. Time:</span>
                       <span className="text-white">
-                        {(pendingOrderData as any).mode === 'cross-chain' ? '2-5 minutes' : '~30 seconds'}
+                        {pendingOrderData.mode === 'cross-chain' ? '2-5 minutes' : '~30 seconds'}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">Max Slippage:</span>
-                      <span className="text-white">{(pendingOrderData as any).slippage}%</span>
+                      <span className="text-white">{pendingOrderData.slippage}%</span>
                     </div>
                   </div>
                 </div>
@@ -874,6 +874,8 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
             </motion.div>
           </div>
         )}
+
+        {/* Settings and Token Selection Modal */}
         {showModal && (
           <motion.div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
@@ -938,8 +940,8 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                             key={value}
                             onClick={() => setSlippage(value)}
                             className={`px-3 py-2 rounded-lg text-sm transition-colors ${slippage === value
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
                               }`}
                           >
                             {value}%
@@ -977,8 +979,8 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                     <motion.button
                       key={chain.name}
                       className={`flex items-center gap-3 w-full p-4 rounded-lg border transition-all ${tempValue === chain.name
-                        ? 'bg-blue-500/20 border-blue-500/50 text-white'
-                        : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'
+                          ? 'bg-blue-500/20 border-blue-500/50 text-white'
+                          : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'
                         }`}
                       onClick={() => selectOption(chain.name)}
                       whileHover={{ scale: 1.02 }}
@@ -1000,8 +1002,8 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                     <motion.button
                       key={token.name}
                       className={`flex items-center gap-3 w-full p-4 rounded-lg border transition-all ${tempValue === token.name
-                        ? 'bg-green-500/20 border-green-500/50 text-white'
-                        : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'
+                          ? 'bg-green-500/20 border-green-500/50 text-white'
+                          : 'bg-slate-700 border-slate-600 hover:bg-slate-600 text-slate-300'
                         }`}
                       onClick={() => selectOption(token.name)}
                       whileHover={{ scale: 1.02 }}
@@ -1066,14 +1068,9 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
             </motion.div>
           </motion.div>
         )}
-
-
       </AnimatePresence>
     </div>
   );
 };
 
-export default TradeIntentBuilder
-
-
-
+export default TradeIntentBuilder;
