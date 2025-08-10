@@ -76,7 +76,9 @@ const OrdersPage = () => {
         );
         
         console.log('Filtered user orders:', userOrders);
-        setOrders(userOrders);
+        setOrders(
+  [...userOrders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+);
       } catch (error) {
         console.error('Error fetching orders:', error);
         setError('Failed to load orders');

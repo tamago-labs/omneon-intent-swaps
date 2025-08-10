@@ -1,5 +1,5 @@
 import { OrderData, ProcessingResult, ChainType } from '../types';
-// import { OKXDexService, OKXConfig, CHAIN_IDS, TOKEN_ADDRESSES } from '../okx-dex-service';
+import { OKXDexService, OKXConfig, CHAIN_IDS, TOKEN_ADDRESSES } from '../okx-dex-service';
 
 export abstract class BaseChainProcessor {
   abstract processOrder(order: OrderData): Promise<ProcessingResult>;
@@ -21,22 +21,22 @@ export abstract class BaseChainProcessor {
 }
 
 export class SameChainProcessor extends BaseChainProcessor {
-  // private okxService: OKXDexService;
+  private okxService: any;
 
   constructor() {
     super();
     
     // Initialize OKX DEX service with environment variables
-    // const config: OKXConfig = {
-    //   apiKey: process.env.OKX_API_KEY!,
-    //   secretKey: process.env.OKX_SECRET_KEY!,
-    //   apiPassphrase: process.env.OKX_API_PASSPHRASE!,
-    //   projectId: process.env.OKX_PROJECT_ID!,
-    //   evmPrivateKey: process.env.EVM_RESOLVER_PRIVATE_KEY!,
-    //   suiPrivateKey: process.env.SUI_RESOLVER_PRIVATE_KEY
-    // };
+    const config: OKXConfig = {
+      apiKey: process.env.OKX_API_KEY!,
+      secretKey: process.env.OKX_SECRET_KEY!,
+      apiPassphrase: process.env.OKX_API_PASSPHRASE!,
+      projectId: process.env.OKX_PROJECT_ID!,
+      evmPrivateKey: process.env.EVM_RESOLVER_PRIVATE_KEY!,
+      suiPrivateKey: process.env.SUI_RESOLVER_PRIVATE_KEY
+    };
     
-    // this.okxService = new OKXDexService(config);
+    this.okxService = new OKXDexService(config);
   }
   
   async processOrder(order: OrderData): Promise<ProcessingResult> {
@@ -87,72 +87,72 @@ export class SameChainProcessor extends BaseChainProcessor {
       const chainId = this.getOkxChainId(order.sourceChainId);
       
       // First get a quote to validate the swap and check rates
-    //   const quote = await this.okxService.getQuote({
-    //     chainId,
-    //     fromTokenAddress: order.sourceTokenAddress,
-    //     toTokenAddress: order.destTokenAddress,
-    //     amount: order.amountIn,
-    //     slippage: '0.005' // 0.5% slippage
-    //   });
+      const quote = await this.okxService.getQuote({
+        chainId,
+        fromTokenAddress: order.sourceTokenAddress,
+        toTokenAddress: order.destTokenAddress,
+        amount: order.amountIn,
+        slippage: '0.005' // 0.5% slippage
+      });
 
-    //   console.log(`Quote received: ${quote.fromToken.tokenSymbol} -> ${quote.toToken.tokenSymbol}`);
-    //   console.log(`Expected output: ${quote.toToken.amount}`);
+      console.log(`Quote received: ${quote.fromToken.tokenSymbol} -> ${quote.toToken.tokenSymbol}`);
+      console.log(`Expected output: ${quote.toToken.amount}`);
 
-    //   // Validate minimum output requirement
-    //   const expectedOutput = BigInt(quote.toToken.amount);
-    //   if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
-    //     throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
-    //   }
+      // Validate minimum output requirement
+      const expectedOutput = BigInt(quote.toToken.amount);
+      if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
+        throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
+      }
 
-    //   // Check if token approval is needed (skip for native tokens)
-    //   if (order.sourceTokenAddress !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
-    //     console.log('Checking token approval for infinity allowance...');
-    //     const approvalCheck = await this.okxService.checkApproval({
-    //       chainId,
-    //       tokenAddress: order.sourceTokenAddress,
-    //       amount: order.amountIn
-    //     });
+      // Check if token approval is needed (skip for native tokens)
+      if (order.sourceTokenAddress !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
+        console.log('Checking token approval for infinity allowance...');
+        const approvalCheck = await this.okxService.checkApproval({
+          chainId,
+          tokenAddress: order.sourceTokenAddress,
+          amount: order.amountIn
+        });
 
-    //     console.log('Approval check result:', {
-    //       needsApproval: approvalCheck.needsApproval,
-    //       currentAllowance: approvalCheck.currentAllowance
-    //     });
+        console.log('Approval check result:', {
+          needsApproval: approvalCheck.needsApproval,
+          currentAllowance: approvalCheck.currentAllowance
+        });
 
-    //     if (approvalCheck.needsApproval) {
-    //       console.log('Token approval required, executing INFINITY approval...');
-    //       const approvalResult = await this.okxService.executeApproval({
-    //         chainId,
-    //         tokenAddress: order.sourceTokenAddress,
-    //         amount: order.amountIn // Amount doesn't matter, we approve MAX_UINT256
-    //       });
-    //       console.log(`Infinity approval completed: ${approvalResult.transactionHash}`);
+        if (approvalCheck.needsApproval) {
+          console.log('Token approval required, executing INFINITY approval...');
+          const approvalResult = await this.okxService.executeApproval({
+            chainId,
+            tokenAddress: order.sourceTokenAddress,
+            amount: order.amountIn // Amount doesn't matter, we approve MAX_UINT256
+          });
+          console.log(`Infinity approval completed: ${approvalResult.transactionHash}`);
           
-    //       if (approvalResult.explorerUrl) {
-    //         console.log(`Approval explorer URL: ${approvalResult.explorerUrl}`);
-    //       }
-    //     } else {
-    //       console.log('Token already has sufficient approval (infinity or sufficient amount)');
-    //     }
-    //   }
+          if (approvalResult.explorerUrl) {
+            console.log(`Approval explorer URL: ${approvalResult.explorerUrl}`);
+          }
+        } else {
+          console.log('Token already has sufficient approval (infinity or sufficient amount)');
+        }
+      }
 
-    //   // Execute the swap
-    //   const swapResult = await this.okxService.executeEvmSwap({
-    //     chainId,
-    //     fromTokenAddress: order.sourceTokenAddress,
-    //     toTokenAddress: order.destTokenAddress,
-    //     amount: order.amountIn,
-    //     userWalletAddress: order.recipientAddress,
-    //     slippage: '0.005'
-    //   });
+      // Execute the swap
+      const swapResult = await this.okxService.executeEvmSwap({
+        chainId,
+        fromTokenAddress: order.sourceTokenAddress,
+        toTokenAddress: order.destTokenAddress,
+        amount: order.amountIn,
+        userWalletAddress: order.recipientAddress,
+        slippage: '0.005'
+      });
 
-    //   console.log(`EVM same-chain swap completed with tx: ${swapResult.transactionHash}`);
+      console.log(`EVM same-chain swap completed with tx: ${swapResult.transactionHash}`);
       
-    //   return {
-    //     success: true,
-    //     txHash: swapResult.transactionHash!,
-    //     actualAmountOut: swapResult.details?.toToken.amount || quote.toToken.amount,
-    //     explorerUrl: swapResult.explorerUrl
-    //   };
+      return {
+        success: true,
+        txHash: swapResult.transactionHash!,
+        actualAmountOut: swapResult.details?.toToken.amount || quote.toToken.amount,
+        explorerUrl: swapResult.explorerUrl
+      };
     } catch (error: any) {
       console.error('EVM swap error:', error);
       throw error;
@@ -163,44 +163,44 @@ export class SameChainProcessor extends BaseChainProcessor {
     console.log(`Processing SUI same-chain swap for ${order.sourceTokenSymbol} -> ${order.destTokenSymbol}`);
     
     try {
-    //   const chainId = CHAIN_IDS.SUI_MAINNET;
+      const chainId = CHAIN_IDS.SUI_MAINNET;
       
-    //   // Get quote first
-    //   const quote = await this.okxService.getQuote({
-    //     chainId,
-    //     fromTokenAddress: order.sourceTokenAddress,
-    //     toTokenAddress: order.destTokenAddress,
-    //     amount: order.amountIn,
-    //     slippage: '0.005'
-    //   });
+      // Get quote first
+      const quote = await this.okxService.getQuote({
+        chainId,
+        fromTokenAddress: order.sourceTokenAddress,
+        toTokenAddress: order.destTokenAddress,
+        amount: order.amountIn,
+        slippage: '0.005'
+      });
 
-    //   console.log(`SUI Quote received: ${quote.fromToken.tokenSymbol} -> ${quote.toToken.tokenSymbol}`);
-    //   console.log(`Expected output: ${quote.toToken.amount}`);
+      console.log(`SUI Quote received: ${quote.fromToken.tokenSymbol} -> ${quote.toToken.tokenSymbol}`);
+      console.log(`Expected output: ${quote.toToken.amount}`);
 
-    //   // Validate minimum output
-    //   const expectedOutput = BigInt(quote.toToken.amount);
-    //   if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
-    //     throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
-    //   }
+      // Validate minimum output
+      const expectedOutput = BigInt(quote.toToken.amount);
+      if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
+        throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
+      }
 
-    //   // Execute the swap
-    //   const swapResult = await this.okxService.executeSuiSwap({
-    //     chainId,
-    //     fromTokenAddress: order.sourceTokenAddress,
-    //     toTokenAddress: order.destTokenAddress,
-    //     amount: order.amountIn,
-    //     userWalletAddress: order.recipientAddress,
-    //     slippage: '0.005'
-    //   });
+      // Execute the swap
+      const swapResult = await this.okxService.executeSuiSwap({
+        chainId,
+        fromTokenAddress: order.sourceTokenAddress,
+        toTokenAddress: order.destTokenAddress,
+        amount: order.amountIn,
+        userWalletAddress: order.recipientAddress,
+        slippage: '0.005'
+      });
 
-    //   console.log(`SUI same-chain swap completed with tx: ${swapResult.transactionId}`);
+      console.log(`SUI same-chain swap completed with tx: ${swapResult.transactionId}`);
       
-    //   return {
-    //     success: true,
-    //     txHash: swapResult.transactionId!,
-    //     actualAmountOut: swapResult.details?.toToken.amount || quote.toToken.amount,
-    //     explorerUrl: swapResult.explorerUrl
-    //   };
+      return {
+        success: true,
+        txHash: swapResult.transactionId!,
+        actualAmountOut: swapResult.details?.toToken.amount || quote.toToken.amount,
+        explorerUrl: swapResult.explorerUrl
+      };
     } catch (error: any) {
       console.error('SUI swap error:', error);
       throw error;
@@ -251,11 +251,11 @@ export class SameChainProcessor extends BaseChainProcessor {
 
   private getOkxChainId(chainId: number): string {
     switch (chainId) {
-    //   case 1: return CHAIN_IDS.ETHEREUM;
-    //   case 8453: return CHAIN_IDS.BASE;
-    //   case 10: return CHAIN_IDS.OPTIMISM;
-    //   case 137: return CHAIN_IDS.POLYGON;
-    //   case 42161: return CHAIN_IDS.ARBITRUM;
+      case 1: return CHAIN_IDS.ETHEREUM;
+      case 8453: return CHAIN_IDS.BASE;
+      case 10: return CHAIN_IDS.OPTIMISM;
+      case 137: return CHAIN_IDS.POLYGON;
+      case 42161: return CHAIN_IDS.ARBITRUM;
       default: throw new Error(`Unsupported chain ID: ${chainId}`);
     }
   }
