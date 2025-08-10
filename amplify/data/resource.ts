@@ -12,7 +12,7 @@ const schema = a.schema({
       isActive: a.boolean().default(true),
       reputation: a.integer().default(100),
       totalExecuted: a.integer().default(0),
-      supportedChains: a.string().array(), // JSON array of supported ChainType
+      supportedChains: a.integer().array(), // JSON array of supported ChainType
       walletAddress: a.string().array(),
       avgExecutionTime: a.float(), // In seconds
       successRate: a.float().default(100.0), // Percentage

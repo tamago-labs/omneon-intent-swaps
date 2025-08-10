@@ -141,10 +141,10 @@ const Footer = () => {
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-2 text-slate-400 text-xs">
                                 <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                                <span>Mainnet Live</span>
+                                <span>4+ Mainnet Live</span>
                             </div>
                             <div className="text-slate-400 text-xs">
-                                5+ Active Resolvers
+                                1+ Active Resolvers
                             </div>
                         </div>
                     </div>
