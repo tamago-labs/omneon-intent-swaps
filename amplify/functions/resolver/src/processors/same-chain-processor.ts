@@ -106,23 +106,32 @@ export class SameChainProcessor extends BaseChainProcessor {
 
       // Check if token approval is needed (skip for native tokens)
       if (order.sourceTokenAddress !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
-        console.log('Checking token approval...');
+        console.log('Checking token approval for infinity allowance...');
         const approvalCheck = await this.okxService.checkApproval({
           chainId,
           tokenAddress: order.sourceTokenAddress,
           amount: order.amountIn
         });
 
+        console.log('Approval check result:', {
+          needsApproval: approvalCheck.needsApproval,
+          currentAllowance: approvalCheck.currentAllowance
+        });
+
         if (approvalCheck.needsApproval) {
-          console.log('Token approval required, executing...');
+          console.log('Token approval required, executing INFINITY approval...');
           const approvalResult = await this.okxService.executeApproval({
             chainId,
             tokenAddress: order.sourceTokenAddress,
-            amount: order.amountIn
+            amount: order.amountIn // Amount doesn't matter, we approve MAX_UINT256
           });
-          console.log(`Approval completed: ${approvalResult.transactionHash}`);
+          console.log(`Infinity approval completed: ${approvalResult.transactionHash}`);
+          
+          if (approvalResult.explorerUrl) {
+            console.log(`Approval explorer URL: ${approvalResult.explorerUrl}`);
+          }
         } else {
-          console.log('Token already approved');
+          console.log('Token already has sufficient approval (infinity or sufficient amount)');
         }
       }
 

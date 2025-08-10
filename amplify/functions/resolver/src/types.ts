@@ -93,6 +93,7 @@ export interface ProcessingResult {
   txHash?: string;
   actualAmountOut?: string;
   errorReason?: string;
+  explorerUrl?: string;
 }
 
 export interface ResolverConfig {

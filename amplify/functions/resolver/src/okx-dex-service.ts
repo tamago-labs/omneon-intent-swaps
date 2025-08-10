@@ -232,11 +232,14 @@ export class OKXDexService {
         }
     }
 
+    // Constants for infinity approval
+    private readonly MAX_UINT256 = '115792089237316195423570985008687907853269984665640564039457584007913129639935';
+
     async checkApproval(params: {
         chainId: string;
         tokenAddress: string;
         amount: string;
-    }): Promise<{ needsApproval: boolean; allowance: string }> {
+    }): Promise<{ needsApproval: boolean; allowance: string; currentAllowance?: string }> {
         try {
             if (params.tokenAddress === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
                 return { needsApproval: false, allowance: 'unlimited' };
@@ -257,16 +260,25 @@ export class OKXDexService {
                 }
             });
 
-            const result = await client.dex.executeApproval({
-                chainId: params.chainId,
-                tokenContractAddress: params.tokenAddress,
-                approveAmount: params.amount
-            });
+            // Check current allowance first
+            try {
+                const allowanceResult = await client.dex.executeApproval({
+                    chainId: params.chainId,
+                    tokenContractAddress: params.tokenAddress,
+                    approveAmount: params.amount // Just to check, we'll approve max later
+                });
 
-            if ('alreadyApproved' in result) {
-                return { needsApproval: false, allowance: params.amount };
-            } else {
-                return { needsApproval: true, allowance: '0' };
+                if ('alreadyApproved' in allowanceResult) {
+                    // Check if current allowance is sufficient for the amount
+                    // If it's a very large number, consider it as infinity approval
+                    return { needsApproval: false, allowance: 'sufficient', currentAllowance: 'approved' };
+                } else {
+                    return { needsApproval: true, allowance: '0', currentAllowance: '0' };
+                }
+            } catch (error: any) {
+                // If checking fails, assume approval is needed
+                console.log('Could not check current allowance, assuming approval needed');
+                return { needsApproval: true, allowance: '0', currentAllowance: 'unknown' };
             }
         } catch (error: any) {
             console.error('Error checking approval:', error);
@@ -280,7 +292,8 @@ export class OKXDexService {
         amount: string;
     }): Promise<SwapResult> {
         try {
-            console.log(`Executing approval for token ${params.tokenAddress}`);
+            console.log(`Executing INFINITY approval for token ${params.tokenAddress}`);
+            console.log(`Using max uint256: ${this.MAX_UINT256}`);
 
             // Update EVM provider for the specific chain
             const rpcUrl = this.getRpcUrl('evm', params.chainId);
@@ -297,28 +310,29 @@ export class OKXDexService {
                 }
             });
 
+            // Use MAX_UINT256 for infinity approval
             const result = await client.dex.executeApproval({
                 chainId: params.chainId,
                 tokenContractAddress: params.tokenAddress,
-                approveAmount: params.amount
+                approveAmount: this.MAX_UINT256 // Approve maximum amount
             });
 
             if ('alreadyApproved' in result) {
-                console.log('Token already approved');
+                console.log('Token already has sufficient approval');
                 return {
                     transactionHash: 'already_approved',
                     status: 1
                 };
             } else {
-                console.log('Token approval completed:', result.transactionHash);
+                console.log('Infinity token approval completed:', result.transactionHash);
                 return {
                     transactionHash: result.transactionHash,
                     explorerUrl: result.explorerUrl
                 };
             }
         } catch (error: any) {
-            console.error('Error executing approval:', error);
-            throw new Error(`Token approval failed: ${error.message}`);
+            console.error('Error executing infinity approval:', error);
+            throw new Error(`Token infinity approval failed: ${error.message}`);
         }
     }
 
@@ -342,6 +356,22 @@ export class OKXDexService {
         const divisor = Math.pow(10, decimals);
         const value = parseFloat(amount) / divisor;
         return value.toFixed(6);
+    }
+
+    // Utility method to get max uint256 for infinity approvals
+    getMaxUint256(): string {
+        return this.MAX_UINT256;
+    }
+
+    // Check if an amount represents infinity approval
+    isInfinityApproval(amount: string): boolean {
+        // Consider amounts close to max uint256 as infinity
+        const threshold = BigInt(this.MAX_UINT256) / BigInt(2); // Half of max uint256
+        try {
+            return BigInt(amount) >= threshold;
+        } catch {
+            return false;
+        }
     }
 }
 
