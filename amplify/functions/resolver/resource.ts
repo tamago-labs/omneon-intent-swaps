@@ -3,7 +3,7 @@ import { secret } from '@aws-amplify/backend';
 
 export const resolverScheduler = defineFunction({
     name: "resolver-scheduler",
-    schedule: "every 10m",
+    schedule: "every 5m",
     timeoutSeconds: 300, // 5 minutes 
     memoryMB: 1024,
     environment: {
