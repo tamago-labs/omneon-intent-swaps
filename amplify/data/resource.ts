@@ -12,7 +12,7 @@ const schema = a.schema({
       isActive: a.boolean().default(true),
       reputation: a.integer().default(100),
       totalExecuted: a.integer().default(0),
-      supportedChains: a.integer().array(), // JSON array of supported ChainType
+      supportedChains: a.string().array(), // JSON array of supported ChainType
       walletAddress: a.string().array(),
       avgExecutionTime: a.float(), // In seconds
       successRate: a.float().default(100.0), // Percentage
@@ -44,8 +44,8 @@ const schema = a.schema({
     .model({
       userId: a.id().required(),
       user: a.belongsTo("Wallet", "userId"),
-      senderAddress: a.string().required(),
-      recipientAddress: a.string().required(),
+      senderAddress: a.string(),
+      recipientAddress: a.string(),
       resolverId: a.id().required(),
       resolver: a.belongsTo("Resolver", "resolverId"),
       intentId: a.string().required(), // bytes32 from smart contract also duplicate it for ID 
