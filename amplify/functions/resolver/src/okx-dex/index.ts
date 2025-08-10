@@ -1,6 +1,6 @@
 import { HTTPClient } from "./http-client";
 import { DexAPI } from "./dex"
-import { BridgeAPI } from "../api/bridge";
+import { BridgeAPI } from "./bridge"
 // import type { OKXConfig } from "../types";
 
 export class OKXDexClient {
