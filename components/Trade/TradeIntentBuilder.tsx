@@ -71,7 +71,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
 
   // Get token info
-  const sourceTokenInfo = sourceChain === 'SUI'
+  const sourceTokenInfo: any = sourceChain === 'SUI'
     ? getSuiTokenBySymbol(sourceToken)
     : getTokensForChain(sourceChain).find(t => t.symbol === sourceToken);
   const targetTokenInfo = targetChain === 'SUI'
@@ -143,7 +143,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   };
 
   const { data: allowance } = useTokenAllowance(
-    sourceTokenInfo?.address as Address,
+    sourceTokenInfo?.address as any,
     wallets.evm as Address,
     currentContracts?.IntentRFQ || ('0x0000000000000000000000000000000000000000' as Address)
   );
