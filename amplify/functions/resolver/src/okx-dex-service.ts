@@ -133,14 +133,14 @@ export class OKXDexService {
                 fromTokenAddress: params.fromTokenAddress,
                 toTokenAddress: params.toTokenAddress,
                 amount: params.amount,
-                slippage: params.slippage || '0.005'
+                // slippage: params.slippage || '0.005'
             });
 
-            if (!quote.data || quote.data.length === 0) {
+            if (!quote.data) {
                 throw new Error('No quote data available');
             }
 
-            return quote.data[0];
+            return quote.data;
         } catch (error: any) {
             console.error('Error getting quote:', error.message);
             throw new Error(`Failed to get quote: ${error.message}`);

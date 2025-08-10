@@ -174,6 +174,9 @@ export class SameChainProcessor extends BaseChainProcessor {
         slippage: '0.005'
       });
 
+      console.log("quote:", quote)
+      console.log("order: ", order)
+
       console.log(`SUI Quote received: ${quote.fromToken.tokenSymbol} -> ${quote.toToken.tokenSymbol}`);
       console.log(`Expected output: ${quote.toToken.amount}`);
 
@@ -182,6 +185,8 @@ export class SameChainProcessor extends BaseChainProcessor {
       if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
         throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
       }
+
+      
 
       // Execute the swap
       const swapResult = await this.okxService.executeSuiSwap({
