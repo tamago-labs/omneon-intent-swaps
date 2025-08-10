@@ -7,9 +7,11 @@ import {
   INTENT_RFQ_ABI,
   ERC20_ABI,
   ChainType,
+  getContractsForChain,
   getChainType,
   getChainId,
   formatTokenAmount,
+  getChainName,
   parseTokenAmount
 } from '@/lib/contracts';
 
@@ -39,30 +41,17 @@ export function useTokenAllowance(
   } as any);
 }
 
-// Hook to calculate fee
-export function useFeeCalculation(amount: string, decimals: number) {
-  const amountBigInt = parseTokenAmount(amount || '0', decimals);
-
-  return useReadContract({
-    address: CONTRACTS.SEPOLIA.IntentRFQ,
-    abi: INTENT_RFQ_ABI,
-    functionName: 'calculateFee',
-    args: [amountBigInt],
-    enabled: Number(amountBigInt) > 0,
-  } as any);
-}
-
 // Hook to approve token
 export function useTokenApproval() {
   const { writeContract, data: hash, isPending, isError, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
 
-  const approve = async (tokenAddress: Address, amount: bigint) => {
+  const approve = async (tokenAddress: Address, amount: bigint, chainName: string) => {
     writeContract({
       address: tokenAddress,
       abi: ERC20_ABI,
       functionName: 'approve',
-      args: [CONTRACTS.SEPOLIA.IntentRFQ, amount],
+      args: [getContractsForChain(chainName).IntentRFQ, amount],
     });
   };
 
@@ -85,7 +74,7 @@ export function useCreateOrder() {
     isSuccess,
     data: receipt
   } = useWaitForTransactionReceipt({ hash });
- 
+
 
   const createOrder = async ({
     sourceChain,
@@ -113,7 +102,7 @@ export function useCreateOrder() {
     console.log("resolver:", resolver)
 
     writeContract({
-      address: CONTRACTS.SEPOLIA.IntentRFQ,
+      address: getContractsForChain(sourceChain).IntentRFQ,
       abi: INTENT_RFQ_ABI,
       functionName: 'createOrder',
       args: [
@@ -132,12 +121,12 @@ export function useCreateOrder() {
   };
 
   // Extract intent ID from receipt
-  const getIntentIdFromReceipt = (receipt: any): string | null => {
+  const getIntentIdFromReceipt = (receipt: any, chainName: string): string | null => {
     if (!receipt?.logs) return null;
 
     // Find OrderCreated event
     for (const log of receipt.logs) {
-      if (log.address?.toLowerCase() === CONTRACTS.SEPOLIA.IntentRFQ.toLowerCase()) {
+      if (log.address?.toLowerCase() ===  getContractsForChain(chainName).IntentRFQ.toLowerCase()) {
         // The first topic is the event signature, second is intentId
         if (log.topics && log.topics.length >= 2) {
           return log.topics[1]; // This is the intentId
@@ -155,7 +144,7 @@ export function useCreateOrder() {
     error,
     hash,
     receipt,
-    getIntentIdFromReceipt: () => getIntentIdFromReceipt(receipt)
+    getIntentIdFromReceipt: (chainName: string) => getIntentIdFromReceipt(receipt, chainName)
   };
 }
 
@@ -199,9 +188,9 @@ export function useIntentOrderCreation() {
   useEffect(() => {
     if (orderSuccess && receipt && pendingResolve) {
       console.log("Transaction confirmed!", receipt);
-      
+ 
       // Extract intent ID from receipt
-      const extractedIntentId = getIntentIdFromReceipt();
+      const extractedIntentId = getIntentIdFromReceipt(getChainName(receipt.chainId));
       if (extractedIntentId) {
         setIntentId(extractedIntentId);
         setTxHash(orderHash || null);
@@ -212,7 +201,7 @@ export function useIntentOrderCreation() {
         setError('Failed to extract intent ID from transaction');
         pendingResolve({ success: false, error: 'Failed to extract intent ID from transaction' });
       }
-      
+
       setPendingResolve(null);
     } else if (orderError && pendingResolve) {
       console.log("Transaction failed:", orderErrorDetails);
@@ -257,14 +246,14 @@ export function useIntentOrderCreation() {
 
       if (needsApproval) {
         setState('approving');
-        
+
         // Approve tokens
-        approve(sourceTokenAddress, amountInBigInt);
+        approve(sourceTokenAddress, amountInBigInt, sourceChain);
 
         // Wait for approval to complete
         await new Promise((resolve, reject) => {
           setPendingApprovalResolve(() => resolve);
-          
+
           // Set timeout for approval
           setTimeout(() => {
             if (pendingApprovalResolve) {
@@ -293,7 +282,7 @@ export function useIntentOrderCreation() {
       // Return a promise that resolves when the transaction is confirmed
       return new Promise((resolve, reject) => {
         setPendingResolve(() => resolve);
-        
+
         // Set a timeout to reject if transaction takes too long
         setTimeout(() => {
           if (pendingResolve) {

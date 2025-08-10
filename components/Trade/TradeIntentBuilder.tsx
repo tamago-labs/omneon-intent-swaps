@@ -6,7 +6,7 @@ import { X, TrendingUp, Zap, Clock, ArrowRight, Shield, Settings, Info, AlertCir
 import { orderAPI } from '@/lib/api';
 import { useWalletType } from '@/lib/wallet-type-context';
 import { useResolvers } from '@/lib/hooks/useResolvers';
-import { useTokenBalance, useTokenAllowance, useFeeCalculation, useTokenApproval, useCreateOrder, formatTokenAmount, parseTokenAmount, checkNeedsApproval } from '@/lib/hooks/useContracts';
+import { useTokenBalance, useTokenAllowance, useTokenApproval, useCreateOrder, formatTokenAmount, parseTokenAmount, checkNeedsApproval } from '@/lib/hooks/useContracts';
 import { useCreateIntentOrder } from '@/lib/hooks/useCreateIntentOrder';
 import { getTokensForChain, ChainType, getTokenAddress, getContractsForChain } from '@/lib/contracts';
 import { useRate } from '@/lib/hooks/useRate';
@@ -738,9 +738,8 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
           </div>
 
           {/* Route and Details */}
-          <div className="bg-slate-700/20 rounded-lg p-4 mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Route Information */}
+          {/* <div className="bg-slate-700/20 rounded-lg p-4 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> 
               <div>
                 <div className="text-slate-400 text-sm mb-2 flex items-center gap-2">
                   <BarChart3 size={14} />
@@ -757,8 +756,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                   ))}
                 </div>
               </div>
-
-              {/* Transaction Details */}
+ 
               <div>
                 <div className="text-slate-400 text-sm mb-2">Transaction Settings</div>
                 <div className="space-y-1 text-sm">
@@ -777,7 +775,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                 </div>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Create Order Button */}
           <div className="text-center">

@@ -11,7 +11,7 @@ export function useOrderStatus(intentId: string | null) {
 
   // Check on-chain status
   const { data: onChainRoots } = useReadContract({
-    address: CONTRACTS.SEPOLIA.IntentRFQ,
+    address: CONTRACTS.BASE.IntentRFQ,
     abi: INTENT_RFQ_ABI,
     functionName: 'getStatusRoots',
     enabled: !!intentId

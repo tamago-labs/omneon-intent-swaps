@@ -319,6 +319,36 @@ export function getChainId(chainName: string): number {
   }
 }
 
+// Helper function to get chain name from chain ID
+export function getChainName(chainId: number): string {
+  switch(chainId) {
+    case 1:
+      return 'Ethereum';
+    case 11155111:
+      return 'Sepolia';
+    case 8453:
+      return 'Base';
+    case 84532:
+      return 'Base Sepolia';
+    case 10:
+      return 'Optimism';
+    case 420:
+      return 'Optimism Goerli';
+    case 137:
+      return 'Polygon';
+    case 80001:
+      return 'Polygon Mumbai';
+    case 42161:
+      return 'Arbitrum One';
+    case 421613:
+      return 'Arbitrum Goerli';
+    case 0:
+      return 'SUI';
+    default:
+      return 'Ethereum'; // Default fallback
+  }
+}
+
 // Helper function to get chain type from chain name
 export function getChainType(chainName: string): ChainType {
   switch(chainName) {
@@ -336,6 +366,7 @@ export function getChainType(chainName: string): ChainType {
       return ChainType.EVM;
   }
 }
+ 
 
 // Helper to get contract addresses for a chain
 export function getContractsForChain(chainName: string) {
