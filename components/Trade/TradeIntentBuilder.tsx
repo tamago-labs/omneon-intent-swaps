@@ -10,6 +10,8 @@ import { useTokenBalance, useTokenAllowance, useFeeCalculation, useTokenApproval
 import { useCreateIntentOrder } from '@/lib/hooks/useCreateIntentOrder';
 import { getTokensForChain, ChainType, getTokenAddress, getContractsForChain } from '@/lib/contracts';
 import { useRate } from '@/lib/hooks/useRate';
+import { useTokenPricesForDisplay, useEstimatedOutput } from '@/lib/hooks/usePythPrices';
+import { formatPrice } from '@/lib/services/pyth-price-service';
 import { Address } from 'viem';
 import { useRouter } from 'next/navigation';
 
@@ -75,6 +77,27 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   const targetTokenInfo = targetChain === 'SUI'
     ? getSuiTokenBySymbol(targetToken)
     : getTokensForChain(targetChain).find(t => t.symbol === targetToken);
+
+  // Get all token symbols for price fetching
+  const allTokenSymbols = React.useMemo(() => {
+    const sourceTokens = sourceChain === 'SUI'
+      ? SUI_TOKENS.MAINNET.map(token => token.symbol)
+      : getTokensForChain(sourceChain).map(token => token.symbol);
+    
+    const targetTokens = mode === 'same-chain' 
+      ? sourceTokens
+      : (targetChain === 'SUI'
+          ? SUI_TOKENS.MAINNET.map(token => token.symbol)
+          : getTokensForChain(targetChain).map(token => token.symbol));
+    
+    return [...new Set([...sourceTokens, ...targetTokens])];
+  }, [sourceChain, targetChain, mode]);
+
+  // Get live prices from Pyth Oracle
+  const { getPriceForToken, getPriceChangeForToken, loading: pricesLoading } = useTokenPricesForDisplay(allTokenSymbols);
+
+  // Get estimated output using Pyth prices with OKX fallback
+  const pythEstimation = useEstimatedOutput(sourceToken, targetToken, amount, mode);
 
   // Get contracts for current source chain
   const currentContracts: any = sourceChain !== 'SUI' ? getContractsForChain(sourceChain) : null;
@@ -146,37 +169,48 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   ];
 
   const tokens = sourceChain === 'SUI'
-    ? SUI_TOKENS.MAINNET.map(token => ({
-      name: token.symbol,
-      price: '$1.00',
-      icon: token.icon,
-      balance: suiBalances[token.symbol] || '0.000000',
-      address: token.type,
-      decimals: token.decimals
-    }))
+    ? SUI_TOKENS.MAINNET.map(token => {
+        const price = getPriceForToken(token.symbol);
+        const priceChange = getPriceChangeForToken(token.symbol);
+        return {
+          name: token.symbol,
+          price: price,
+          priceChange: priceChange.change,
+          isPositive: priceChange.isPositive,
+          icon: token.icon,
+          balance: suiBalances[token.symbol] || '0.000000',
+          address: token.type,
+          decimals: token.decimals
+        };
+      })
     : getTokensForChain(sourceChain).map(token => {
-      let balance = '0.00';
-
-      // Get balance based on token symbol
-      if (token.symbol === 'WETH' && wethBalance.data) {
-        balance = formatTokenAmount(wethBalance.data, token.decimals);
-      } else if (token.symbol === 'USDC' && usdcBalance.data) {
-        balance = formatTokenAmount(usdcBalance.data, token.decimals);
-      } else if (token.symbol === 'USDT' && usdtBalance.data) {
-        balance = formatTokenAmount(usdtBalance.data, token.decimals);
-      } else if (token.symbol === 'WBTC' && wbtcBalance.data) {
-        balance = formatTokenAmount(wbtcBalance.data, token.decimals);
-      }
-
-      return {
-        name: token.symbol,
-        price: '$1.00',
-        icon: token.icon,
-        balance,
-        address: token.address,
-        decimals: token.decimals
-      };
-    });
+        let balance = '0.00';
+        
+        // Get balance based on token symbol
+        if (token.symbol === 'WETH' && wethBalance.data) {
+          balance = formatTokenAmount(wethBalance.data, token.decimals);
+        } else if (token.symbol === 'USDC' && usdcBalance.data) {
+          balance = formatTokenAmount(usdcBalance.data, token.decimals);
+        } else if (token.symbol === 'USDT' && usdtBalance.data) {
+          balance = formatTokenAmount(usdtBalance.data, token.decimals);
+        } else if (token.symbol === 'WBTC' && wbtcBalance.data) {
+          balance = formatTokenAmount(wbtcBalance.data, token.decimals);
+        }
+        
+        const price = getPriceForToken(token.symbol);
+        const priceChange = getPriceChangeForToken(token.symbol);
+        
+        return {
+          name: token.symbol,
+          price: price,
+          priceChange: priceChange.change,
+          isPositive: priceChange.isPositive,
+          icon: token.icon,
+          balance,
+          address: token.address,
+          decimals: token.decimals
+        };
+      });
 
   const availableChains = mode === 'same-chain' ? sameChainNetworks : crossChainNetworks;
 
@@ -250,34 +284,36 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
     enabled: !!(amount && parseFloat(amount) > 0)
   });
 
-  // Calculate more useful rate data from OKX quote
+  // Calculate rate data using Pyth prices with OKX fallback
   const rateData = {
-    // Estimated output calculation
-    estimatedOutput: rateQuote
-      ? (parseFloat(rateQuote.toToken.amount) / Math.pow(10, rateQuote.toToken.decimals)).toFixed(6)
-      : mode === 'cross-chain'
-        ? (parseFloat(amount || '0') * (sourceToken === 'SUI' ? 1322.45 : 0.000756)).toFixed(sourceToken === 'SUI' ? 2 : 6)
-        : (parseFloat(amount || '0') * 2.45).toFixed(2),
-
-    // Current exchange rate
-    currentRate: rateQuote ? parseFloat(rateQuote.rate).toFixed(6) : (mode === 'cross-chain' ? '1,322.45' : '2.45'),
-
-    // Price impact from the actual quote
-    priceImpact: rateQuote?.priceImpact ? `${parseFloat(rateQuote.priceImpact).toFixed(3)}%` : '< 0.1%',
-
+    // Use Pyth estimation first, fallback to OKX quote
+    estimatedOutput: pythEstimation.estimatedOutput,
+    
+    // Current exchange rate from Pyth or fallback
+    currentRate: pythEstimation.currentRate,
+    
+    // Price impact
+    priceImpact: pythEstimation.priceImpact,
+    
     // Execution time based on mode
     executionTime: mode === 'cross-chain' ? '2-5 min' : '15-45s',
-
-    // Expected value after slippage
-    minReceived: rateQuote
-      ? (parseFloat(rateQuote.toToken.amount) / Math.pow(10, rateQuote.toToken.decimals) * (1 - parseFloat(slippage) / 100)).toFixed(6)
-      : (parseFloat(amount || '0') * 2.45 * (1 - parseFloat(slippage) / 100)).toFixed(6),
-
-    // Route information
-    route: rateQuote?.route || (mode === 'cross-chain' ? ['Bridge', 'DEX'] : ['Uniswap V3']),
-
+    
+    // Expected value after slippage using Pyth estimation
+    minReceived: (
+      parseFloat(pythEstimation.estimatedOutput) * (1 - parseFloat(slippage) / 100)
+    ).toFixed(6),
+    
+    // Route information (fallback to OKX route if available)
+    route: rateQuote?.route || (mode === 'cross-chain' ? ['Pyth Oracle', 'Bridge', 'DEX'] : ['Pyth Oracle', 'Uniswap V3']),
+    
     // Slippage setting
-    slippage: `${slippage}%`
+    slippage: `${slippage}%`,
+    
+    // Data source indicator
+    source: pythEstimation.source,
+    
+    // Loading state
+    loading: pythEstimation.loading || rateLoading
   };
 
   const openModal = (type: string, currentValue: string = '') => {
@@ -645,13 +681,17 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
               <div className="text-slate-400 text-sm mb-1 flex items-center gap-2">
                 <Target size={14} />
                 You'll Receive
-                {rateLoading && (
+                {rateData.loading && (
                   <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-400" />
                 )}
               </div>
               <div className="text-xl font-bold text-white">≈ {rateData.estimatedOutput} {targetToken}</div>
-              <div className="text-blue-400 text-sm">
-                {rateError ? 'Rate unavailable' : 'Live from OKX'}
+              <div className={`text-sm ${
+                rateData.source === 'pyth' ? 'text-green-400' : 
+                rateData.source === 'fallback' ? 'text-yellow-400' : 'text-blue-400'
+              }`}>
+                {rateData.source === 'pyth' ? '🔮 Live from Pyth Oracle' : 
+                 rateData.source === 'fallback' ? '⚡ Fallback pricing' : 'Live from OKX'}
               </div>
             </div>
 
@@ -660,6 +700,9 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
               <div className="text-slate-400 text-sm mb-1 flex items-center gap-2">
                 <TrendingUp size={14} />
                 Exchange Rate
+                {rateData.loading && (
+                  <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-400" />
+                )}
               </div>
               <div className="text-xl font-bold text-white">
                 1 {sourceToken} = {rateData.currentRate} {targetToken}
@@ -1012,7 +1055,19 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
                       <img src={token.icon} alt={token.name} className="w-8 h-8 rounded-full" />
                       <div className="text-left flex-1">
                         <div className="font-medium">{token.name}</div>
-                        <div className="text-sm text-slate-400">{token.price}</div>
+                        <div className="text-sm flex items-center gap-1">
+                          <span className="text-slate-400">{token.price}</span>
+                          {token.priceChange !== undefined && (
+                            <span className={`text-xs ${
+                              token.isPositive ? 'text-green-400' : 'text-red-400'
+                            }`}>
+                              {token.isPositive ? '+' : ''}{token.priceChange.toFixed(2)}%
+                            </span>
+                          )}
+                          {pricesLoading && (
+                            <div className="animate-spin rounded-full h-2 w-2 border border-slate-400" />
+                          )}
+                        </div>
                       </div>
                       <div className="text-right">
                         <div className="text-sm text-slate-400">Balance</div>
