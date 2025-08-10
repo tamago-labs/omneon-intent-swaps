@@ -24,24 +24,48 @@ export enum OrderStatus {
 
 // Network configurations
 export const NETWORKS = {
-  SEPOLIA: {
-    chainId: 11155111,
-    name: 'Ethereum Sepolia',
+  ETHEREUM: {
+    chainId: 1,
+    name: 'Ethereum',
     chainType: ChainType.EVM,
-    rpcUrl: process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://eth-sepolia.public.blastapi.io',
-    blockExplorer: 'https://sepolia.etherscan.io',
+    rpcUrl: process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
+    blockExplorer: 'https://etherscan.io',
     nativeCurrency: {
       name: 'ETH',
       symbol: 'ETH',
       decimals: 18
     }
   },
-  SUI_TESTNET: {
+  BASE: {
+    chainId: 8453,
+    name: 'Base',
+    chainType: ChainType.EVM,
+    rpcUrl: process.env.NEXT_PUBLIC_BASE_RPC_URL || 'https://mainnet.base.org',
+    blockExplorer: 'https://basescan.org',
+    nativeCurrency: {
+      name: 'ETH',
+      symbol: 'ETH',
+      decimals: 18
+    }
+  },
+  OPTIMISM: {
+    chainId: 10,
+    name: 'Optimism',
+    chainType: ChainType.EVM,
+    rpcUrl: process.env.NEXT_PUBLIC_OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
+    blockExplorer: 'https://optimistic.etherscan.io',
+    nativeCurrency: {
+      name: 'ETH',
+      symbol: 'ETH',
+      decimals: 18
+    }
+  },
+  SUI: {
     chainId: 0, // SUI doesn't use numeric chain IDs
-    name: 'SUI Testnet',
+    name: 'SUI',
     chainType: ChainType.SUI,
-    rpcUrl: 'https://fullnode.testnet.sui.io',
-    blockExplorer: 'https://testnet.suivision.xyz',
+    rpcUrl: process.env.NEXT_PUBLIC_SUI_RPC_URL || 'https://fullnode.mainnet.sui.io',
+    blockExplorer: 'https://suivision.xyz',
     nativeCurrency: {
       name: 'SUI',
       symbol: 'SUI',
@@ -52,55 +76,110 @@ export const NETWORKS = {
 
 // Contract addresses on different networks
 export const CONTRACTS = {
-  SEPOLIA: {
-    IntentRFQ: '0x0acDdC1CEC5642f613738Fa4A1bEE00486f9033E' as Address,
-    MockUSDC: '0x6a1804E37F32062451f29Ab46aD9Dd1F101E1898' as Address,
-    MockWETH: '0x502590b643570D8255dA59bec2A062611B3d0479' as Address,
-    MockWBTC: '0x526176c7dD65d18b3Fc37109C296B79D2fb8f57e' as Address,
+  ETHEREUM: {
+    IntentRFQ: '0x9feb0D7447081835d058D4a9de4F89f4651586Cb' as Address,
+    ResolverRegistry: '0x96D188A974a3d43578eE55da240361c72A7b1610' as Address,
+    USDC: '0xA0b86a33E6441c1C07bDa0B52d1B3ae0fe8f78d6' as Address, // USDC on Ethereum
+    WETH: '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2' as Address, // WETH on Ethereum
+    WBTC: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599' as Address, // WBTC on Ethereum
   },
-  SUI_TESTNET: {
-    // Add SUI contract addresses when available
-    IntentRFQ: '', 
-    ResolverRegistry: '',
+  BASE: {
+    IntentRFQ: '0xfC44EF149b458Bab72A4AE6F870CaBf7575D955e' as Address,
+    ResolverRegistry: '0x49067a1b9F07ac6b2Df9eB95e649A796B16478a6' as Address,
+    USDC: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address, // USDC on Base
+    WETH: '0x4200000000000000000000000000000000000006' as Address, // WETH on Base
+    WBTC: '0x236aa50979D5f3De3Bd1Eeb40E81137F22ab794b' as Address, // WBTC on Base (placeholder)
+  },
+  OPTIMISM: {
+    IntentRFQ: '0x38170B724fa94B48AAA52dCd45438Da718138550' as Address,
+    ResolverRegistry: '0x9DaBaFa492188093116cfEDee1b13aD76b1c1742' as Address,
+    USDC: '0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85' as Address, // USDC on Optimism
+    WETH: '0x4200000000000000000000000000000000000006' as Address, // WETH on Optimism
+    WBTC: '0x68f180fcCe6836688e9084f035309E29Bf0A2095' as Address, // WBTC on Optimism
   }
 };
 
+// Hardcoded Resolver Addresses
+export const EVM_RESOLVER_ADDRESS = '0xee098fEA55039762bC5db10a512588a33e9F965E' as Address;
+
 // Token configurations
 export const TOKENS = {
-  SEPOLIA: [
+  ETHEREUM: [
     {
-      address: CONTRACTS.SEPOLIA.MockUSDC,
+      address: CONTRACTS.ETHEREUM.USDC,
       symbol: 'USDC',
       name: 'USD Coin',
       decimals: 6,
       icon: '💵',
-      chainId: NETWORKS.SEPOLIA.chainId
+      chainId: NETWORKS.ETHEREUM.chainId
     },
     {
-      address: CONTRACTS.SEPOLIA.MockWETH,
+      address: CONTRACTS.ETHEREUM.WETH,
       symbol: 'WETH',
       name: 'Wrapped Ether',
       decimals: 18,
       icon: '⟠',
-      chainId: NETWORKS.SEPOLIA.chainId
+      chainId: NETWORKS.ETHEREUM.chainId
     },
     {
-      address: CONTRACTS.SEPOLIA.MockWBTC,
+      address: CONTRACTS.ETHEREUM.WBTC,
       symbol: 'WBTC',
       name: 'Wrapped Bitcoin',
       decimals: 8,
       icon: '₿',
-      chainId: NETWORKS.SEPOLIA.chainId
+      chainId: NETWORKS.ETHEREUM.chainId
     }
   ],
-  SUI_TESTNET: [
+  BASE: [
     {
-      address: '0x2::sui::SUI',
-      symbol: 'SUI',
-      name: 'SUI',
-      decimals: 9,
-      icon: '🔷',
-      chainId: 0
+      address: CONTRACTS.BASE.USDC,
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 6,
+      icon: '💵',
+      chainId: NETWORKS.BASE.chainId
+    },
+    {
+      address: CONTRACTS.BASE.WETH,
+      symbol: 'WETH',
+      name: 'Wrapped Ether',
+      decimals: 18,
+      icon: '⟠',
+      chainId: NETWORKS.BASE.chainId
+    },
+    {
+      address: CONTRACTS.BASE.WBTC,
+      symbol: 'WBTC',
+      name: 'Wrapped Bitcoin',
+      decimals: 8,
+      icon: '₿',
+      chainId: NETWORKS.BASE.chainId
+    }
+  ],
+  OPTIMISM: [
+    {
+      address: CONTRACTS.OPTIMISM.USDC,
+      symbol: 'USDC',
+      name: 'USD Coin',
+      decimals: 6,
+      icon: '💵',
+      chainId: NETWORKS.OPTIMISM.chainId
+    },
+    {
+      address: CONTRACTS.OPTIMISM.WETH,
+      symbol: 'WETH',
+      name: 'Wrapped Ether',
+      decimals: 18,
+      icon: '⟠',
+      chainId: NETWORKS.OPTIMISM.chainId
+    },
+    {
+      address: CONTRACTS.OPTIMISM.WBTC,
+      symbol: 'WBTC',
+      name: 'Wrapped Bitcoin',
+      decimals: 8,
+      icon: '₿',
+      chainId: NETWORKS.OPTIMISM.chainId
     }
   ]
 };
@@ -209,29 +288,29 @@ export const ERC20_ABI = [
 // Helper function to get chain ID from chain name
 export function getChainId(chainName: string): number {
   switch(chainName) {
-    case 'Ethereum Sepolia':
     case 'Ethereum':
-      return NETWORKS.SEPOLIA.chainId;
+      return NETWORKS.ETHEREUM.chainId;
+    case 'Base':
+      return NETWORKS.BASE.chainId;
+    case 'Optimism':
+      return NETWORKS.OPTIMISM.chainId;
     case 'SUI':
-    case 'SUI Testnet':
       return 0; // SUI doesn't use numeric chain IDs
     default:
-      return NETWORKS.SEPOLIA.chainId;
+      return NETWORKS.ETHEREUM.chainId;
   }
 }
 
 // Helper function to get chain type from chain name
 export function getChainType(chainName: string): ChainType {
   switch(chainName) {
-    case 'Ethereum Sepolia':
     case 'Ethereum':
     case 'Base':
+    case 'Optimism':
     case 'Polygon':
     case 'BNB Chain':
-    case 'Optimism':
       return ChainType.EVM;
     case 'SUI':
-    case 'SUI Testnet':
       return ChainType.SUI;
     case 'Solana':
       return ChainType.SOLANA;
@@ -240,10 +319,37 @@ export function getChainType(chainName: string): ChainType {
   }
 }
 
+// Helper to get contract addresses for a chain
+export function getContractsForChain(chainName: string) {
+  switch(chainName) {
+    case 'Ethereum':
+      return CONTRACTS.ETHEREUM;
+    case 'Base':
+      return CONTRACTS.BASE;
+    case 'Optimism':
+      return CONTRACTS.OPTIMISM;
+    default:
+      return CONTRACTS.ETHEREUM;
+  }
+}
+
+// Helper to get tokens for a chain
+export function getTokensForChain(chainName: string) {
+  switch(chainName) {
+    case 'Ethereum':
+      return TOKENS.ETHEREUM;
+    case 'Base':
+      return TOKENS.BASE;
+    case 'Optimism':
+      return TOKENS.OPTIMISM;
+    default:
+      return TOKENS.ETHEREUM;
+  }
+}
+
 // Helper to get token address from symbol
 export function getTokenAddress(symbol: string, chainName: string): Address {
-  const chainId = getChainId(chainName);
-  const tokens = chainId === NETWORKS.SEPOLIA.chainId ? TOKENS.SEPOLIA : TOKENS.SUI_TESTNET;
+  const tokens = getTokensForChain(chainName);
   const token = tokens.find(t => t.symbol === symbol);
   return (token?.address || '0x0000000000000000000000000000000000000000') as Address;
 }

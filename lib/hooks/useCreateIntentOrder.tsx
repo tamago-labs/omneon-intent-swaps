@@ -4,7 +4,7 @@ import { useAccount } from 'wagmi';
 import { Address } from 'viem';
 import { useIntentOrderCreation } from './useContracts';
 import { orderAPI, resolverAPI, userAPI} from '@/lib/api';
-import { getTokenAddress, getChainId, getChainType, parseTokenAmount } from '@/lib/contracts';
+import { getTokenAddress, getChainId, getChainType, parseTokenAmount, EVM_RESOLVER_ADDRESS } from '@/lib/contracts';
 import { useResolvers } from './useResolvers';
 
 interface CreateIntentOrderParams {
@@ -31,8 +31,8 @@ export function useCreateIntentOrder() {
       throw new Error('Wallet not connected');
     }
 
-    // Use hardcoded resolver address for now
-    const resolverAddress = "0x91C65f404714Ac389b38335CccA4A876a8669d32";
+    // Use hardcoded EVM resolver address
+    const resolverAddress = EVM_RESOLVER_ADDRESS;
 
     setIsSubmitting(true);
 

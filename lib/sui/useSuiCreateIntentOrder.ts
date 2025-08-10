@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Transaction } from '@mysten/sui/transactions';
+import { SuiClient, getFullnodeUrl } from '@mysten/sui/client';
 import { SUI_CONTRACTS, getSuiTokenBySymbol, parseSuiAmount, CHAIN_TYPES } from './contracts';
 import { orderAPI, userAPI, resolverAPI } from '@/lib/api';
-import { suiClient, getTokenDecimals } from './useSuiBalances';
 
 interface CreateSuiIntentOrderParams {
   sourceToken: string;
@@ -18,6 +18,8 @@ interface CreateSuiIntentOrderParams {
 export function useSuiCreateIntentOrder() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [state, setState] = useState<'idle' | 'checking' | 'creating' | 'success'>('idle');
+
+  const client = new SuiClient({ url: getFullnodeUrl('mainnet') });
 
   const createSuiIntentOrder = async (params: CreateSuiIntentOrderParams, signAndExecuteTransaction: any) => {
     if (!params.userAddress) {
@@ -38,13 +40,7 @@ export function useSuiCreateIntentOrder() {
         throw new Error('Invalid token selection');
       }
 
-      // Get actual decimals from chain
-      console.log('Fetching token decimals...');
-      const sourceDecimals = await getTokenDecimals(sourceTokenInfo.type);
-      const destDecimals = await getTokenDecimals(destTokenInfo.type);
-      
-      console.log(`Source token ${params.sourceToken} decimals:`, sourceDecimals);
-      console.log(`Dest token ${params.destToken} decimals:`, destDecimals);
+      console.log(`Using token decimals - Source: ${sourceTokenInfo.decimals}, Dest: ${destTokenInfo.decimals}`);
 
       setState('creating');
 
@@ -59,7 +55,7 @@ export function useSuiCreateIntentOrder() {
       }
 
       // Get all coins of the source token type
-      const allCoins = await suiClient.getCoins({
+      const allCoins = await client.getCoins({
         owner: params.userAddress,
         coinType,
       });
@@ -68,16 +64,16 @@ export function useSuiCreateIntentOrder() {
         throw new Error(`No ${params.sourceToken} coins found`);
       }
 
-      // Calculate amounts using actual decimals
-      const amountInWei = parseSuiAmount(params.amount, sourceDecimals);
-      const minAmountOutWei = parseSuiAmount(params.minAmountOut, destDecimals);
+      // Calculate amounts using token info decimals
+      const amountInWei = parseSuiAmount(params.amount, sourceTokenInfo.decimals);
+      const minAmountOutWei = parseSuiAmount(params.minAmountOut, destTokenInfo.decimals);
       
       console.log(`Amount in (${params.amount} ${params.sourceToken}):`, amountInWei);
       console.log(`Min amount out (${params.minAmountOut} ${params.destToken}):`, minAmountOutWei);
 
       // Check total balance
       const totalBalance = allCoins.data.reduce(
-        (sum, coin) => sum + Number(coin.balance),
+        (sum: any, coin: any) => sum + Number(coin.balance),
         0
       );
 
@@ -90,7 +86,7 @@ export function useSuiCreateIntentOrder() {
       if (restCoins.length > 0 && params.sourceToken !== 'SUI') {
         tx.mergeCoins(
           tx.object(mainCoin.coinObjectId),
-          restCoins.map((coin) => tx.object(coin.coinObjectId))
+          restCoins.map((coin: any) => tx.object(coin.coinObjectId))
         );
       }
 
@@ -107,30 +103,30 @@ export function useSuiCreateIntentOrder() {
 
       // Create ChainType objects using the contract helper function
       const sourceChainType = tx.moveCall({
-        target: `${SUI_CONTRACTS.TESTNET.PACKAGE_ID}::intent_rfq::create_chain_type`,
+        target: `${SUI_CONTRACTS.MAINNET.PACKAGE_ID}::intent_rfq::create_chain_type`,
         arguments: [tx.pure.u8(CHAIN_TYPES.SUI)]
       });
 
       const destChainType = tx.moveCall({
-        target: `${SUI_CONTRACTS.TESTNET.PACKAGE_ID}::intent_rfq::create_chain_type`,
+        target: `${SUI_CONTRACTS.MAINNET.PACKAGE_ID}::intent_rfq::create_chain_type`,
         arguments: [tx.pure.u8(CHAIN_TYPES.SUI)]
       });
 
       // Create intent order on SUI using the actual contract function
       // create_order<T>(intent_rfq, registry, source_type, source_chain_id, payment, dest_type, dest_chain_id, min_amount_out, resolver, ctx)
       tx.moveCall({
-        target: `${SUI_CONTRACTS.TESTNET.PACKAGE_ID}::intent_rfq::create_order`,
+        target: `${SUI_CONTRACTS.MAINNET.PACKAGE_ID}::intent_rfq::create_order`,
         typeArguments: [sourceTokenInfo.type],
         arguments: [
-          tx.object(SUI_CONTRACTS.TESTNET.INTENT_RFQ), // intent_rfq
-          tx.object(SUI_CONTRACTS.TESTNET.RESOLVER_REGISTRY), // registry
+          tx.object(SUI_CONTRACTS.MAINNET.INTENT_RFQ), // intent_rfq
+          tx.object(SUI_CONTRACTS.MAINNET.RESOLVER_REGISTRY), // registry
           sourceChainType, // source_type (ChainType)
-          tx.pure.u64(0), // source_chain_id (0 for SUI testnet)
+          tx.pure.u64(0), // source_chain_id (0 for SUI mainnet)
           coinToUse, // payment (Coin<T>)
           destChainType, // dest_type (ChainType)
-          tx.pure.u64(0), // dest_chain_id (0 for SUI testnet)
+          tx.pure.u64(0), // dest_chain_id (0 for SUI mainnet)
           tx.pure.u64(minAmountOutWei), // min_amount_out
-          tx.pure.address(SUI_CONTRACTS.TESTNET.RESOLVER_ADDRESS) // resolver
+          tx.pure.address(SUI_CONTRACTS.MAINNET.RESOLVER_ADDRESS) // resolver
         ],
       });
 
@@ -139,8 +135,8 @@ export function useSuiCreateIntentOrder() {
         coinType,
         amountInWei,
         minAmountOutWei,
-        resolverAddress: SUI_CONTRACTS.TESTNET.RESOLVER_ADDRESS,
-        intentRfq: SUI_CONTRACTS.TESTNET.INTENT_RFQ
+        resolverAddress: SUI_CONTRACTS.MAINNET.RESOLVER_ADDRESS,
+        intentRfq: SUI_CONTRACTS.MAINNET.INTENT_RFQ
       });
 
       // Execute transaction using the dapp-kit mutation
@@ -183,8 +179,8 @@ export function useSuiCreateIntentOrder() {
                   ...params,
                   intentId,
                   txHash: result.digest,
-                  sourceTokenInfo: { ...sourceTokenInfo, decimals: sourceDecimals },
-                  destTokenInfo: { ...destTokenInfo, decimals: destDecimals },
+                  sourceTokenInfo,
+                  destTokenInfo,
                   amountInWei,
                   minAmountOutWei
                 });

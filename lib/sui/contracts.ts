@@ -1,14 +1,14 @@
 // SUI Network Configuration
 export const SUI_CONTRACTS = {
-  TESTNET: {
-    PACKAGE_ID: '0x5ee4512a9040d43d31d03e01c0b56e70d6459ab16d7d60f8f4d2cfadea4f17f7',
-    INTENT_RFQ: '0x1f08af6bba9194bd57ad136420ded025b7edf4d513661ac4806100b44981801a',
-    RESOLVER_REGISTRY: '0x1f08af6bba9194bd57ad136420ded025b7edf4d513661ac4806100b44981801a', // Same object, different capability
-    RESOLVER_ADDRESS: '0x0ee1f64a7e84369a41bcf11e7fcb9cffcb0125b391327a61e082ecac95357883',
+  MAINNET: {
+    PACKAGE_ID: '0x2fa86cb35a443fe6ef0c534d1c6f1b8f05750c9043e39548ae708dda8a499337',
+    INTENT_RFQ: '0xb63acdb64625249e861f3392546bce6d83f34b8708863608f5c359809e9ef358',
+    RESOLVER_REGISTRY: '0xe0c5ffb28451df890ec67a46323c83c0ff140b96766d642e5d0936cd9b49bb49',
+    RESOLVER_ADDRESS: '0x98d9d3e7b644182c87310ba8c6c7fdb4a2f2338cd0db58d7e6fa88e562129318',
     TEST_TOKEN: {
-      TYPE: '0x5ee4512a9040d43d31d03e01c0b56e70d6459ab16d7d60f8f4d2cfadea4f17f7::test_token::TEST_TOKEN',
+      TYPE: '0x2fa86cb35a443fe6ef0c534d1c6f1b8f05750c9043e39548ae708dda8a499337::test_token::TEST_TOKEN',
       SYMBOL: 'TEST',
-      DECIMALS: 6
+      DECIMALS: 9
     },
     SUI_TOKEN: {
       TYPE: '0x2::sui::SUI',
@@ -33,7 +33,7 @@ export const CHAIN_TYPES = {
 };
 
 export const SUI_TOKENS = {
-  TESTNET: [
+  MAINNET: [
     {
       symbol: 'SUI',
       name: 'Sui',
@@ -44,7 +44,7 @@ export const SUI_TOKENS = {
     {
       symbol: 'TEST',
       name: 'Test Token',
-      type: '0x5ee4512a9040d43d31d03e01c0b56e70d6459ab16d7d60f8f4d2cfadea4f17f7::test_token::TEST_TOKEN',
+      type: '0x2fa86cb35a443fe6ef0c534d1c6f1b8f05750c9043e39548ae708dda8a499337::test_token::TEST_TOKEN',
       decimals: 6,
       icon: '🪙'
     }
@@ -53,7 +53,7 @@ export const SUI_TOKENS = {
 
 // Helper functions
 export function getSuiTokenBySymbol(symbol: string) {
-  return SUI_TOKENS.TESTNET.find(token => token.symbol === symbol);
+  return SUI_TOKENS.MAINNET.find(token => token.symbol === symbol);
 }
 
 export function formatSuiAmount(amount: string | number, decimals: number = 9): string {

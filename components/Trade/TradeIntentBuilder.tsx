@@ -8,7 +8,7 @@ import { useWalletType } from '@/lib/wallet-type-context';
 import { useResolvers } from '@/lib/hooks/useResolvers';
 import { useTokenBalance, useTokenAllowance, useFeeCalculation, useTokenApproval, useCreateOrder, formatTokenAmount, parseTokenAmount, checkNeedsApproval } from '@/lib/hooks/useContracts';
 import { useCreateIntentOrder } from '@/lib/hooks/useCreateIntentOrder';
-import { TOKENS, CONTRACTS, ChainType, getTokenAddress } from '@/lib/contracts';
+import { getTokensForChain, ChainType, getTokenAddress, getContractsForChain } from '@/lib/contracts';
 import { Address } from 'viem';
 import { useRouter } from 'next/navigation';
 
@@ -45,9 +45,9 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   const [mode, setMode] = useState<'same-chain' | 'cross-chain'>('same-chain');
   const [amount, setAmount] = useState('100');
   const [sourceToken, setSourceToken] = useState('USDC');
-  const [sourceChain, setSourceChain] = useState('Ethereum Sepolia');
+  const [sourceChain, setSourceChain] = useState('Ethereum');
   const [targetToken, setTargetToken] = useState('WETH');
-  const [targetChain, setTargetChain] = useState('Ethereum Sepolia');
+  const [targetChain, setTargetChain] = useState('Ethereum');
 
   // Advanced settings
   const [slippage, setSlippage] = useState('0.5');
@@ -68,22 +68,29 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   const [pendingOrderData, setPendingOrderData] = useState<any>(null);
 
   // Get token info
-  const sourceTokenInfo = TOKENS.SEPOLIA.find(t => t.symbol === sourceToken);
-  const targetTokenInfo = TOKENS.SEPOLIA.find(t => t.symbol === targetToken);
+  const sourceTokenInfo = sourceChain === 'SUI' 
+    ? getSuiTokenBySymbol(sourceToken)
+    : getTokensForChain(sourceChain).find(t => t.symbol === sourceToken);
+  const targetTokenInfo = targetChain === 'SUI'
+    ? getSuiTokenBySymbol(targetToken)
+    : getTokensForChain(targetChain).find(t => t.symbol === targetToken);
 
-  // Contract hooks - get all token balances
+  // Get contracts for current source chain
+  const currentContracts = sourceChain !== 'SUI' ? getContractsForChain(sourceChain) : null;
+
+  // Contract hooks - get token balances dynamically based on selected chain
   const usdcBalance: any = useTokenBalance(
-    CONTRACTS.SEPOLIA.MockUSDC,
+    currentContracts?.USDC || ('0x0000000000000000000000000000000000000000' as Address),
     wallets.evm as Address
   );
 
   const wethBalance: any = useTokenBalance(
-    CONTRACTS.SEPOLIA.MockWETH,
+    currentContracts?.WETH || ('0x0000000000000000000000000000000000000000' as Address),
     wallets.evm as Address
   );
 
   const wbtcBalance: any = useTokenBalance(
-    CONTRACTS.SEPOLIA.MockWBTC,
+    currentContracts?.WBTC || ('0x0000000000000000000000000000000000000000' as Address),
     wallets.evm as Address
   );
 
@@ -93,12 +100,13 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
       return suiBalances[sourceToken] || '0.000000';
     }
     
-    if (sourceToken === 'USDC' && usdcBalance.data) {
-      return formatTokenAmount(usdcBalance.data, 6);
-    } else if (sourceToken === 'WETH' && wethBalance.data) {
-      return formatTokenAmount(wethBalance.data, 18);
-    } else if (sourceToken === 'WBTC' && wbtcBalance.data) {
-      return formatTokenAmount(wbtcBalance.data, 8);
+    // For EVM chains, get balance based on token symbol
+    if (sourceToken === 'USDC' && usdcBalance.data && sourceTokenInfo) {
+      return formatTokenAmount(usdcBalance.data, sourceTokenInfo.decimals);
+    } else if (sourceToken === 'WETH' && wethBalance.data && sourceTokenInfo) {
+      return formatTokenAmount(wethBalance.data, sourceTokenInfo.decimals);
+    } else if (sourceToken === 'WBTC' && wbtcBalance.data && sourceTokenInfo) {
+      return formatTokenAmount(wbtcBalance.data, sourceTokenInfo.decimals);
     }
     return '0.00';
   };
@@ -106,7 +114,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   const { data: allowance } = useTokenAllowance(
     sourceTokenInfo?.address as Address,
     wallets.evm as Address,
-    CONTRACTS.SEPOLIA.IntentRFQ
+    currentContracts?.IntentRFQ || ('0x0000000000000000000000000000000000000000' as Address)
   );
 
   // Helper function to safely check approval
@@ -119,13 +127,10 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
 
   // Chain configurations
   const sameChainNetworks = [
-    { name: 'Ethereum Sepolia', logo: '⟠' },
-    { name: 'SUI', logo: '🔷' },
+    { name: 'Ethereum', logo: '⟠' },
     { name: 'Base', logo: '🔵' },
-    { name: 'Polygon', logo: '🟣' },
-    { name: 'BNB Chain', logo: '🟡' },
-    { name: 'Cronos', logo: '⚫' },
-    { name: 'Optimism', logo: '🔴' }
+    { name: 'Optimism', logo: '🔴' },
+    { name: 'SUI', logo: '🔷' }
   ];
 
   const crossChainNetworks = [
@@ -134,7 +139,7 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
   ];
 
   const tokens = sourceChain === 'SUI' 
-    ? SUI_TOKENS.TESTNET.map(token => ({
+    ? SUI_TOKENS.MAINNET.map(token => ({
         name: token.symbol,
         price: '$1.00',
         icon: token.icon,
@@ -142,20 +147,27 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
         address: token.type,
         decimals: token.decimals
       }))
-    : TOKENS.SEPOLIA.map(token => ({
-        name: token.symbol,
-        price: '$1.00',
-        icon: token.icon,
-        balance: token.symbol === 'USDC' && usdcBalance.data
-          ? formatTokenAmount(usdcBalance.data, token.decimals)
-          : token.symbol === 'WETH' && wethBalance.data
-            ? formatTokenAmount(wethBalance.data, token.decimals)
-            : token.symbol === 'WBTC' && wbtcBalance.data
-              ? formatTokenAmount(wbtcBalance.data, token.decimals)
-              : '0.00',
-        address: token.address,
-        decimals: token.decimals
-      }));
+    : getTokensForChain(sourceChain).map(token => {
+        let balance = '0.00';
+        
+        // Get balance based on token symbol
+        if (token.symbol === 'USDC' && usdcBalance.data) {
+          balance = formatTokenAmount(usdcBalance.data, token.decimals);
+        } else if (token.symbol === 'WETH' && wethBalance.data) {
+          balance = formatTokenAmount(wethBalance.data, token.decimals);
+        } else if (token.symbol === 'WBTC' && wbtcBalance.data) {
+          balance = formatTokenAmount(wbtcBalance.data, token.decimals);
+        }
+        
+        return {
+          name: token.symbol,
+          price: '$1.00',
+          icon: token.icon,
+          balance,
+          address: token.address,
+          decimals: token.decimals
+        };
+      });
 
   const availableChains = mode === 'same-chain' ? sameChainNetworks : crossChainNetworks;
 
@@ -165,17 +177,17 @@ const TradeIntentBuilder: React.FC<TradeIntentBuilderProps> = ({
       setTargetChain(sourceChain);
       setCondition(`immediately at market rate`);
       
-      // Reset tokens when switching to SUI
+      // Reset tokens when switching chains
       if (sourceChain === 'SUI') {
         setSourceToken('SUI');
         setTargetToken('TEST');
-      } else if (sourceChain === 'Ethereum Sepolia') {
+      } else {
         setSourceToken('USDC');
         setTargetToken('WETH');
       }
     } else {
       if (sourceChain === 'SUI') {
-        setTargetChain('Ethereum Sepolia');
+        setTargetChain('Ethereum');
         setSourceToken('SUI');
         setTargetToken('USDC');
       } else {
