@@ -99,10 +99,10 @@ export class SameChainProcessor extends BaseChainProcessor {
       console.log(`Expected output: ${quote.toTokenAmount}`);
 
       // Validate minimum output requirement
-      const expectedOutput = BigInt(quote.toTokenAmount);
-      if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
-        throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
-      }
+      // const expectedOutput = BigInt(quote.toTokenAmount);
+      // if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
+      //   throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
+      // }
 
       // Check if token approval is needed (skip for native tokens)
       if (order.sourceTokenAddress !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
