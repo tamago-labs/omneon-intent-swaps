@@ -3,6 +3,16 @@
 import { getFullnodeUrl, SuiClient } from "@mysten/sui/client";
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from '@mysten/sui/transactions';
+// import { base64 } from "@scure/base" 
+// import { IntentScope } from "@mysten/sui/cryptography";
+
+// enum IntentScope {
+//     TransactionData = 0,
+//     TransactionEffects = 1,
+//     CheckpointSummary = 2,
+//     PersonalMessage = 3,
+//   }
+
 
 export class SuiSwapExecutor {
     private readonly client: SuiClient;
@@ -121,7 +131,9 @@ export class SuiSwapExecutor {
                 //     }
                 // });
 
-                const signedTx = await this.wallet.signTransaction(builtTx)
+                // const signedTx = await this.wallet.signTransaction(builtTx)
+                const signedTx = await this.wallet.signWithIntent(builtTx, 0 as any)
+                // this.wallet.signWithIntent()
 
                 console.log("signedTx : ", signedTx)
 
@@ -180,11 +192,11 @@ export class SuiSwapExecutor {
             } catch (error: any) {
                 retryCount++;
                 console.error(`Transaction attempt ${retryCount} failed:`, error.message);
-                
+
                 if (retryCount >= (this.networkConfig.maxRetries || 3)) {
                     throw error;
                 }
-                
+
                 // Exponential backoff
                 const delay = 2000 * Math.pow(2, retryCount - 1);
                 console.log(`Retrying in ${delay}ms...`);
@@ -194,6 +206,15 @@ export class SuiSwapExecutor {
 
         throw new Error('Max retries exceeded');
     }
+
+    // private async signTransaction(input: any): Promise<any> {
+ 
+    //     const signer = new RawSigner(this.wallet);
+
+    //     // const s = input as any
+    //     // const d = this.fromBase64(s)
+    //     // return await this.wallet.signTransaction(d)
+    // }
 
     private formatSwapResult(txId: string, routerResult: any): any {
         const fromDecimals = parseInt(routerResult.fromToken.decimal);
@@ -256,6 +277,10 @@ export class SuiSwapExecutor {
             return [];
         }
     }
+
+    // fromBase64(data: string): any {
+    //     return base64.decode(data)
+    // }
 
     async getCoins(coinType?: string, limit: number = 10): Promise<any> {
         try {

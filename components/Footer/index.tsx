@@ -7,7 +7,7 @@ const Footer = () => {
 
     const links = {
         product: [
-            { name: 'How it Works', href: '#how-it-works' },
+            // { name: 'How it Works', href: '#how-it-works' },
             { name: 'Trade', href: '/trade' },
             { name: 'Resolvers', href: '/resolvers' },
             { name: 'Orders', href: '/orders' },
@@ -84,7 +84,7 @@ const Footer = () => {
 
                     {/* Developers Links */}
                     <div>
-                        <h4 className="text-white font-semibold mb-4">Developers</h4>
+                        {/* <h4 className="text-white font-semibold mb-4">Developers</h4>
                         <ul className="space-y-3">
                             {links.developers.map((link) => (
                                 <li key={link.name}>
@@ -97,12 +97,12 @@ const Footer = () => {
                                     </Link>
                                 </li>
                             ))}
-                        </ul>
+                        </ul> */}
                     </div>
 
                     {/* Community & Legal */}
                     <div>
-                        <h4 className="text-white font-semibold mb-4">Community</h4>
+                        {/* <h4 className="text-white font-semibold mb-4">Community</h4>
                         <ul className="space-y-3 mb-6">
                             {links.community.map((link) => (
                                 <li key={link.name}>
@@ -115,7 +115,7 @@ const Footer = () => {
                                     </Link>
                                 </li>
                             ))}
-                        </ul>
+                        </ul> */}
                         
                         {/* <h4 className="text-white font-semibold mb-4">Legal</h4>
                         <ul className="space-y-3">
