@@ -11,7 +11,7 @@ enum IntentScope {
     TransactionEffects = 1,
     CheckpointSummary = 2,
     PersonalMessage = 3,
-  }
+}
 
 
 export class SuiSwapExecutor {
@@ -70,6 +70,8 @@ export class SuiSwapExecutor {
         while (retryCount < (this.networkConfig.maxRetries || 3)) {
             try {
 
+                console.log("tx data:", txData)
+
                 // Create transaction block
                 const txBlock = Transaction.from(txData);
                 txBlock.setSender(this.config.sui.walletAddress);
@@ -119,7 +121,7 @@ export class SuiSwapExecutor {
                 txBlock.setGasBudget(10000000)
 
                 // Build the transaction
-                const builtTx = await txBlock.build({ client: this.client });
+                // const builtTx = await txBlock.build({ client: this.client });
                 // const txBytes = Buffer.from(builtTx).toString('base64');
 
                 // Sign transaction
@@ -132,26 +134,40 @@ export class SuiSwapExecutor {
                 // });
 
                 // const signedTx = await this.wallet.signTransaction(builtTx)
-                const signedTx = await this.wallet.signWithIntent(builtTx, IntentScope.TransactionData as any)
+                // const signedTx = await this.wallet.signTransaction(builtTx)
                 // this.wallet.signWithIntent()
 
-                console.log("signedTx : ", signedTx)
+                // console.log("signedTx : ", signedTx)
 
-                if (!signedTx?.signature) {
-                    throw new Error("Failed to sign transaction");
-                }
+                // if (!signedTx?.signature) {
+                //     throw new Error("Failed to sign transaction");
+                // }
 
-                // Execute transaction
-                const result = await this.client.executeTransactionBlock({
-                    transactionBlock: builtTx,
-                    signature: [signedTx.signature],
+                // // Execute transaction
+                // const result = await this.client.executeTransactionBlock({
+                //     transactionBlock: builtTx,
+                //     signature: [signedTx.signature],
+                //     options: {
+                //         showEffects: true,
+                //         showEvents: true,
+                //     }
+                // });
+
+                // console.log("result:", result)
+
+                const result = await this.client.signAndExecuteTransaction({
+                    transaction: txBlock,
+                    signer: this.wallet,
                     options: {
                         showEffects: true,
                         showEvents: true,
+                        showInput: true,
+                        showRawInput: true,
+                        showObjectChanges: true,
                     }
-                });
+                })
 
-                console.log("result:", result)
+                console.log("result: ", result)
 
                 if (!result.digest) {
                     throw new Error('Transaction failed: No digest received');
@@ -208,7 +224,7 @@ export class SuiSwapExecutor {
     }
 
     // private async signTransaction(input: any): Promise<any> {
- 
+
     //     const signer = new RawSigner(this.wallet);
 
     //     // const s = input as any
