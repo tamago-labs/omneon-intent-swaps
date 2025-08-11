@@ -1,11 +1,12 @@
 // src/api/swap/sui/sui-swap.ts
+import { SuiWallet } from "@okxweb3/coin-sui";
 import { getFullnodeUrl, SuiClient } from "@mysten/sui/client";
-import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+// import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from '@mysten/sui/transactions';
 
 export class SuiSwapExecutor {
     private readonly client: SuiClient;
-    private readonly wallet: Ed25519Keypair;
+    private readonly wallet: SuiWallet;
     private readonly walletAddress: string;
     private readonly DEFAULT_GAS_BUDGET = 50000000;
 
@@ -26,11 +27,9 @@ export class SuiSwapExecutor {
             url: getFullnodeUrl('mainnet')
         });
 
-        // Initialize wallet with Ed25519Keypair
-        this.wallet = Ed25519Keypair.fromSecretKey(this.config.sui.privateKey);
-        this.walletAddress = this.wallet.getPublicKey().toSuiAddress();
-
-        console.log(`SUI wallet initialized: ${this.walletAddress}`);
+        // Initialize wallet 
+        this.wallet = new SuiWallet(); 
+        this.walletAddress = this.config.sui.walletAddress;
     }
 
     async executeSwap(swapData: any, params: any): Promise<any> {
@@ -61,27 +60,77 @@ export class SuiSwapExecutor {
 
                 console.log("txData:", txData)
 
-                // Create transaction block from the provided data
+                // Create transaction block
                 const txBlock = Transaction.from(txData);
-                
-                // Set the sender to our wallet address
-                txBlock.setSender(this.walletAddress);
+                txBlock.setSender(this.config.sui.walletAddress);
 
                 // Get current gas price and set gas parameters
+                // const referenceGasPrice = await this.client.getReferenceGasPrice();
+                // txBlock.setGasPrice(BigInt(referenceGasPrice));
+                // txBlock.setGasBudget(BigInt(this.DEFAULT_GAS_BUDGET));
+
+                // Sign and execute transaction directly
+                // const result = await this.client.signAndExecuteTransaction({
+                //     signer: this.wallet,
+                //     transaction: txBlock,
+                //     options: {
+                //         showEffects: true,
+                //         showEvents: true,
+                //         showInput: true,
+                //         showRawInput: true,
+                //         showObjectChanges: true,
+                //     }
+                // });
+
+                // if (!result.digest) {
+                //     throw new Error('Transaction failed: No digest received');
+                // }
+
+                // // Wait for confirmation with timeout
+                // const confirmation = await this.client.waitForTransaction({
+                //     digest: result.digest,
+                //     options: {
+                //         showEffects: true,
+                //         showEvents: true,
+                //         showObjectChanges: true,
+                //     }
+                // });
+
+                // const status = confirmation.effects?.status?.status;
+                // if (status !== 'success') {
+                //     const error = confirmation.effects?.status?.error;
+                //     throw new Error(`Transaction failed with status: ${status}${error ? `, error: ${error}` : ''}`);
+                // }
+
+                // Set gas parameters
                 const referenceGasPrice = await this.client.getReferenceGasPrice();
                 txBlock.setGasPrice(BigInt(referenceGasPrice));
                 txBlock.setGasBudget(BigInt(this.DEFAULT_GAS_BUDGET));
 
-                // Sign and execute transaction directly
-                const result = await this.client.signAndExecuteTransaction({
-                    signer: this.wallet,
-                    transaction: txBlock,
+                // Build the transaction
+                const builtTx = await txBlock.build({ client: this.client });
+                const txBytes = Buffer.from(builtTx).toString('base64');
+
+                // Sign transaction
+                const signedTx = await this.wallet.signTransaction({
+                    privateKey: this.config.sui.privateKey,
+                    data: {
+                        type: 'raw',
+                        data: txBytes
+                    }
+                });
+
+                if (!signedTx?.signature) {
+                    throw new Error("Failed to sign transaction");
+                }
+
+                // Execute transaction
+                const result = await this.client.executeTransactionBlock({
+                    transactionBlock: builtTx,
+                    signature: [signedTx.signature],
                     options: {
                         showEffects: true,
                         showEvents: true,
-                        showInput: true,
-                        showRawInput: true,
-                        showObjectChanges: true,
                     }
                 });
 
@@ -89,23 +138,19 @@ export class SuiSwapExecutor {
                     throw new Error('Transaction failed: No digest received');
                 }
 
-                // Wait for confirmation with timeout
+                // Wait for confirmation
                 const confirmation = await this.client.waitForTransaction({
                     digest: result.digest,
                     options: {
                         showEffects: true,
                         showEvents: true,
-                        showObjectChanges: true,
                     }
                 });
 
                 const status = confirmation.effects?.status?.status;
                 if (status !== 'success') {
-                    const error = confirmation.effects?.status?.error;
-                    throw new Error(`Transaction failed with status: ${status}${error ? `, error: ${error}` : ''}`);
+                    throw new Error(`Transaction failed with status: ${status}`);
                 }
-
-                console.log(`SUI swap successful: ${result.digest}`);
 
                 return {
                     txId: result.digest,
@@ -114,6 +159,16 @@ export class SuiSwapExecutor {
                     events: confirmation.events,
                     objectChanges: confirmation.objectChanges
                 };
+
+                // console.log(`SUI swap successful: ${result.digest}`);
+
+                // return {
+                //     txId: result.digest,
+                //     confirmation,
+                //     effects: confirmation.effects,
+                //     events: confirmation.events,
+                //     objectChanges: confirmation.objectChanges
+                // };
 
             } catch (error: any) {
                 retryCount++;
