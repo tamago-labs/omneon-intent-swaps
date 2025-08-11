@@ -58,6 +58,9 @@ export class SuiSwapExecutor {
         let retryCount = 0;
         while (retryCount < (this.networkConfig.maxRetries || 3)) {
             try {
+
+                console.log("txData:", txData)
+
                 // Create transaction block from the provided data
                 const txBlock = Transaction.from(txData);
                 
