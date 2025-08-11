@@ -6,12 +6,12 @@ import { Transaction } from '@mysten/sui/transactions';
 // import { base64 } from "@scure/base" 
 // import { IntentScope } from "@mysten/sui/cryptography";
 
-// enum IntentScope {
-//     TransactionData = 0,
-//     TransactionEffects = 1,
-//     CheckpointSummary = 2,
-//     PersonalMessage = 3,
-//   }
+enum IntentScope {
+    TransactionData = 0,
+    TransactionEffects = 1,
+    CheckpointSummary = 2,
+    PersonalMessage = 3,
+  }
 
 
 export class SuiSwapExecutor {
@@ -132,7 +132,7 @@ export class SuiSwapExecutor {
                 // });
 
                 // const signedTx = await this.wallet.signTransaction(builtTx)
-                const signedTx = await this.wallet.signWithIntent(builtTx, 0 as any)
+                const signedTx = await this.wallet.signWithIntent(builtTx, IntentScope.TransactionData as any)
                 // this.wallet.signWithIntent()
 
                 console.log("signedTx : ", signedTx)
