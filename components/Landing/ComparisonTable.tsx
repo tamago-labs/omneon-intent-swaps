@@ -38,14 +38,14 @@ const ComparisonTableSection = () => {
       dexs: "Instant*",
       icon: <Clock size={16} />
     },
-    {
-      feature: "Bridge Fees",
-      description: "Additional fees for cross-chain",
-      omneon: "$0",
-      bridges: "$5-50",
-      dexs: "N/A",
-      icon: <DollarSign size={16} />
-    },
+    // {
+    //   feature: "Bridge Fees",
+    //   description: "Additional fees for cross-chain",
+    //   omneon: "$0",
+    //   bridges: "$5-50",
+    //   dexs: "N/A",
+    //   icon: <DollarSign size={16} />
+    // },
     // {
     //   feature: "Failed Transaction Risk",
     //   description: "Risk of partial execution or stuck funds",
@@ -62,14 +62,14 @@ const ComparisonTableSection = () => {
     //   dexs: "Partial",
     //   icon: <Shield size={16} />
     // },
-    {
-      feature: "Account Abstraction",
-      description: "Gasless transactions and improved UX",
-      omneon: true,
-      bridges: false,
-      dexs: "Limited",
-      icon: <Users size={16} />
-    },
+    // {
+    //   feature: "Account Abstraction",
+    //   description: "Gasless transactions and improved UX",
+    //   omneon: true,
+    //   bridges: false,
+    //   dexs: "Limited",
+    //   icon: <Users size={16} />
+    // },
   ];
 
   const renderValue = (value: any) => {
