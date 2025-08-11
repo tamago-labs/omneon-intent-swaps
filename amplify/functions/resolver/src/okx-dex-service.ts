@@ -140,7 +140,7 @@ export class OKXDexService {
                 throw new Error('No quote data available');
             }
 
-            return quote.data;
+            return quote.data[0];
         } catch (error: any) {
             console.error('Error getting quote:', error.message);
             throw new Error(`Failed to get quote: ${error.message}`);

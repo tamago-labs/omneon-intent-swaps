@@ -96,10 +96,10 @@ export class SameChainProcessor extends BaseChainProcessor {
       });
 
       console.log(`Quote received: ${quote.fromToken.tokenSymbol} -> ${quote.toToken.tokenSymbol}`);
-      console.log(`Expected output: ${quote.toToken.amount}`);
+      console.log(`Expected output: ${quote.toTokenAmount}`);
 
       // Validate minimum output requirement
-      const expectedOutput = BigInt(quote.toToken.amount);
+      const expectedOutput = BigInt(quote.toTokenAmount);
       if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
         throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
       }
@@ -178,15 +178,13 @@ export class SameChainProcessor extends BaseChainProcessor {
       console.log("order: ", order)
 
       console.log(`SUI Quote received: ${quote.fromToken.tokenSymbol} -> ${quote.toToken.tokenSymbol}`);
-      console.log(`Expected output: ${quote.toToken.amount}`);
+      console.log(`Expected output: ${quote.toTokenAmount}`);
 
       // Validate minimum output
-      const expectedOutput = BigInt(quote.toToken.amount);
+      const expectedOutput = BigInt(quote.toTokenAmount);
       if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
         throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
       }
-
-      
 
       // Execute the swap
       const swapResult = await this.okxService.executeSuiSwap({
