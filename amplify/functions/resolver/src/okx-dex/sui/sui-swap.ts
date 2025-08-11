@@ -1,12 +1,12 @@
 // src/api/swap/sui/sui-swap.ts
-import { SuiWallet } from "@okxweb3/coin-sui";
+// import { SuiWallet } from "@okxweb3/coin-sui";
 import { getFullnodeUrl, SuiClient } from "@mysten/sui/client";
-// import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 import { Transaction } from '@mysten/sui/transactions';
 
 export class SuiSwapExecutor {
     private readonly client: SuiClient;
-    private readonly wallet: SuiWallet;
+    private readonly wallet: Ed25519Keypair;
     private readonly walletAddress: string;
     private readonly DEFAULT_GAS_BUDGET = 50000000;
 
@@ -28,8 +28,10 @@ export class SuiSwapExecutor {
         });
 
         // Initialize wallet 
-        this.wallet = new SuiWallet(); 
-        this.walletAddress = this.config.sui.walletAddress;
+        this.wallet = Ed25519Keypair.fromSecretKey(this.config.sui.privateKey);
+        this.walletAddress = this.wallet.getPublicKey().toSuiAddress();
+
+        console.log(`SUI wallet initialized: ${this.walletAddress}`);
     }
 
     async executeSwap(swapData: any, params: any): Promise<any> {
@@ -57,8 +59,6 @@ export class SuiSwapExecutor {
         let retryCount = 0;
         while (retryCount < (this.networkConfig.maxRetries || 3)) {
             try {
-
-                console.log("txData:", txData)
 
                 // Create transaction block
                 const txBlock = Transaction.from(txData);
@@ -103,22 +103,27 @@ export class SuiSwapExecutor {
                 // }
 
                 // Set gas parameters
-                const referenceGasPrice = await this.client.getReferenceGasPrice();
-                txBlock.setGasPrice(BigInt(referenceGasPrice));
-                txBlock.setGasBudget(BigInt(this.DEFAULT_GAS_BUDGET));
+                // const referenceGasPrice = await this.client.getReferenceGasPrice();
+                // txBlock.setGasPrice(BigInt(referenceGasPrice));
+                // txBlock.setGasBudget(BigInt(this.DEFAULT_GAS_BUDGET));
+                txBlock.setGasBudget(10000000)
 
                 // Build the transaction
                 const builtTx = await txBlock.build({ client: this.client });
-                const txBytes = Buffer.from(builtTx).toString('base64');
+                // const txBytes = Buffer.from(builtTx).toString('base64');
 
                 // Sign transaction
-                const signedTx = await this.wallet.signTransaction({
-                    privateKey: this.config.sui.privateKey,
-                    data: {
-                        type: 'raw',
-                        data: txBytes
-                    }
-                });
+                // const signedTx = await this.wallet.signTransaction({
+                //     privateKey: this.config.sui.privateKey,
+                //     data: {
+                //         type: 'raw',
+                //         data: txBytes
+                //     }
+                // });
+
+                const signedTx = await this.wallet.signTransaction(builtTx)
+
+                console.log("signedTx : ", signedTx)
 
                 if (!signedTx?.signature) {
                     throw new Error("Failed to sign transaction");
@@ -133,6 +138,8 @@ export class SuiSwapExecutor {
                         showEvents: true,
                     }
                 });
+
+                console.log("result:", result)
 
                 if (!result.digest) {
                     throw new Error('Transaction failed: No digest received');
