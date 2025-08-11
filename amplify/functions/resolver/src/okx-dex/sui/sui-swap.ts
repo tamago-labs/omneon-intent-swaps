@@ -6,12 +6,12 @@ import { Transaction } from '@mysten/sui/transactions';
 // import { base64 } from "@scure/base" 
 // import { IntentScope } from "@mysten/sui/cryptography";
 
-enum IntentScope {
-    TransactionData = 0,
-    TransactionEffects = 1,
-    CheckpointSummary = 2,
-    PersonalMessage = 3,
-}
+// enum IntentScope {
+//     TransactionData = 0,
+//     TransactionEffects = 1,
+//     CheckpointSummary = 2,
+//     PersonalMessage = 3,
+// }
 
 
 export class SuiSwapExecutor {
@@ -74,7 +74,7 @@ export class SuiSwapExecutor {
 
                 // Create transaction block
                 const txBlock = Transaction.from(txData);
-                txBlock.setSender(this.config.sui.walletAddress);
+                // txBlock.setSender(this.config.sui.walletAddress);
 
                 // Get current gas price and set gas parameters
                 // const referenceGasPrice = await this.client.getReferenceGasPrice();
@@ -118,10 +118,11 @@ export class SuiSwapExecutor {
                 // const referenceGasPrice = await this.client.getReferenceGasPrice();
                 // txBlock.setGasPrice(BigInt(referenceGasPrice));
                 // txBlock.setGasBudget(BigInt(this.DEFAULT_GAS_BUDGET));
-                txBlock.setGasBudget(10000000)
-
+                txBlock.setGasBudget(15000000)
+ 
                 // Build the transaction
                 const builtTx = await txBlock.build({ client: this.client });
+ 
                 // const txBytes = Buffer.from(builtTx).toString('base64');
 
                 // Sign transaction
@@ -133,8 +134,7 @@ export class SuiSwapExecutor {
                 //     }
                 // });
 
-                // const signedTx = await this.wallet.signTransaction(builtTx)
-                // const signedTx = await this.wallet.signTransaction(builtTx)
+                // const signedTx = await this.wallet.signTransaction(builtTx) 
                 // this.wallet.signWithIntent()
 
                 // console.log("signedTx : ", signedTx)

@@ -1,10 +1,11 @@
 import { OrderData, ProcessingResult, ChainType } from '../types';
-import { OKXDexService, OKXConfig, CHAIN_IDS, TOKEN_ADDRESSES } from '../okx-dex-service';
+import { OKXDexService, OKXConfig, CHAIN_IDS } from '../okx-dex-service';
+import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
 
 export abstract class BaseChainProcessor {
   abstract processOrder(order: OrderData): Promise<ProcessingResult>;
   abstract refundOrder(order: OrderData): Promise<ProcessingResult>;
-  
+
   protected calculateOutputAmount(amountIn: string, feeRate: number = 30): bigint {
     const amount = BigInt(amountIn);
     const fee = (amount * BigInt(feeRate)) / BigInt(10000);
@@ -25,7 +26,7 @@ export class SameChainProcessor extends BaseChainProcessor {
 
   constructor() {
     super();
-    
+
     // Initialize OKX DEX service with environment variables
     const config: OKXConfig = {
       apiKey: process.env.OKX_API_KEY!,
@@ -35,13 +36,13 @@ export class SameChainProcessor extends BaseChainProcessor {
       evmPrivateKey: process.env.EVM_RESOLVER_PRIVATE_KEY!,
       suiPrivateKey: process.env.SUI_RESOLVER_PRIVATE_KEY
     };
-    
+
     this.okxService = new OKXDexService(config);
   }
-  
+
   async processOrder(order: OrderData): Promise<ProcessingResult> {
     console.log(`Processing same-chain order ${order.id}`);
-    
+
     try {
       // Route to appropriate chain processor
       if (order.sourceChainType === ChainType.EVM) {
@@ -62,7 +63,7 @@ export class SameChainProcessor extends BaseChainProcessor {
 
   async refundOrder(order: OrderData): Promise<ProcessingResult> {
     console.log(`Refunding same-chain order ${order.id}`);
-    
+
     try {
       if (order.sourceChainType === ChainType.EVM) {
         return await this.refundEvmOrder(order);
@@ -81,11 +82,11 @@ export class SameChainProcessor extends BaseChainProcessor {
 
   private async processEvmSameChainSwap(order: OrderData): Promise<any> {
     console.log(`Processing EVM same-chain swap for ${order.sourceTokenSymbol} -> ${order.destTokenSymbol}`);
-    
+
     try {
       // Map chain ID to OKX chain ID format
       const chainId = this.getOkxChainId(order.sourceChainId);
-      
+
       // First get a quote to validate the swap and check rates
       const quote = await this.okxService.getQuote({
         chainId,
@@ -126,7 +127,7 @@ export class SameChainProcessor extends BaseChainProcessor {
             amount: order.amountIn // Amount doesn't matter, we approve MAX_UINT256
           });
           console.log(`Infinity approval completed: ${approvalResult.transactionHash}`);
-          
+
           if (approvalResult.explorerUrl) {
             console.log(`Approval explorer URL: ${approvalResult.explorerUrl}`);
           }
@@ -141,12 +142,13 @@ export class SameChainProcessor extends BaseChainProcessor {
         fromTokenAddress: order.sourceTokenAddress,
         toTokenAddress: order.destTokenAddress,
         amount: order.amountIn,
-        userWalletAddress: order.recipientAddress,
+        // userWalletAddress: order.recipientAddress,
+        userWalletAddress: "0xee098fEA55039762bC5db10a512588a33e9F965E", // hardcode for now
         slippage: '0.005'
       });
 
       console.log(`EVM same-chain swap completed with tx: ${swapResult.transactionHash}`);
-      
+
       return {
         success: true,
         txHash: swapResult.transactionHash!,
@@ -161,10 +163,10 @@ export class SameChainProcessor extends BaseChainProcessor {
 
   private async processSuiSameChainSwap(order: OrderData): Promise<any> {
     console.log(`Processing SUI same-chain swap for ${order.sourceTokenSymbol} -> ${order.destTokenSymbol}`);
-    
+
     try {
       const chainId = CHAIN_IDS.SUI_MAINNET;
-      
+
       // Get quote first
       const quote = await this.okxService.getQuote({
         chainId,
@@ -181,10 +183,13 @@ export class SameChainProcessor extends BaseChainProcessor {
       console.log(`Expected output: ${quote.toTokenAmount}`);
 
       // Validate minimum output
-      const expectedOutput = BigInt(quote.toTokenAmount);
-      if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
-        throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
-      }
+      // const expectedOutput = BigInt(quote.toTokenAmount);
+      // if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
+      //   throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
+      // }
+
+      const wallet = Ed25519Keypair.fromSecretKey(this.okxService.config.suiPrivateKey);
+      const walletAddress = wallet.getPublicKey().toSuiAddress()
 
       // Execute the swap
       const swapResult = await this.okxService.executeSuiSwap({
@@ -192,12 +197,12 @@ export class SameChainProcessor extends BaseChainProcessor {
         fromTokenAddress: order.sourceTokenAddress,
         toTokenAddress: order.destTokenAddress,
         amount: order.amountIn,
-        userWalletAddress: order.recipientAddress,
+        userWalletAddress: walletAddress,
         slippage: '0.005'
       });
 
       console.log(`SUI same-chain swap completed with tx: ${swapResult.transactionId}`);
-      
+
       return {
         success: true,
         txHash: swapResult.transactionId!,
@@ -212,15 +217,15 @@ export class SameChainProcessor extends BaseChainProcessor {
 
   private async refundEvmOrder(order: OrderData): Promise<ProcessingResult> {
     console.log(`Refunding EVM order to ${order.senderAddress}`);
-    
+
     try {
       // TODO: Implement actual EVM refund transaction
       // For now, simulate refund
       await this.simulateDelay(1000);
       const txHash = this.generateMockTxHash();
-      
+
       console.log(`EVM refund completed with tx: ${txHash}`);
-      
+
       return {
         success: true,
         txHash,
@@ -233,15 +238,15 @@ export class SameChainProcessor extends BaseChainProcessor {
 
   private async refundSuiOrder(order: OrderData): Promise<ProcessingResult> {
     console.log(`Refunding SUI order to ${order.senderAddress}`);
-    
+
     try {
       // TODO: Implement actual SUI refund transaction
       // For now, simulate refund
       await this.simulateDelay(1000);
       const txHash = this.generateMockTxHash();
-      
+
       console.log(`SUI refund completed with tx: ${txHash}`);
-      
+
       return {
         success: true,
         txHash,
