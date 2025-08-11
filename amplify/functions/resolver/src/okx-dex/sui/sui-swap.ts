@@ -121,7 +121,7 @@ export class SuiSwapExecutor {
                 txBlock.setGasBudget(10000000)
 
                 // Build the transaction
-                // const builtTx = await txBlock.build({ client: this.client });
+                const builtTx = await txBlock.build({ client: this.client });
                 // const txBytes = Buffer.from(builtTx).toString('base64');
 
                 // Sign transaction
@@ -156,7 +156,7 @@ export class SuiSwapExecutor {
                 // console.log("result:", result)
 
                 const result = await this.client.signAndExecuteTransaction({
-                    transaction: txBlock,
+                    transaction: builtTx,
                     signer: this.wallet,
                     options: {
                         showEffects: true,
