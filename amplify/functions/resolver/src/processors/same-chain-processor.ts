@@ -350,7 +350,7 @@ export class SameChainProcessor extends BaseChainProcessor {
 
       if (tokenAddress === '0x2::sui::SUI') {
         // Native SUI transfer
-        const [coin] = tx.splitCoins(tx.gas, [tx.pure("u64", this.convertToBaseUnits(amount, tokenAddress))]]);
+        const [coin] = tx.splitCoins(tx.gas, [tx.pure("u64", this.convertToBaseUnits(amount, tokenAddress))]);
         tx.transferObjects([coin], tx.pure("address", recipientAddress));
       } else {
         // Custom token transfer
