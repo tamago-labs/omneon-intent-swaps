@@ -143,7 +143,7 @@ export class SameChainProcessor extends BaseChainProcessor {
       });
 
       console.log(`EVM swap completed, now transferring to user: ${order.recipientAddress}`);
-      
+
       // Transfer swapped tokens to user
       const transferResult = await this.transferEvmTokensToUser(
         order.destTokenAddress,
@@ -203,7 +203,7 @@ export class SameChainProcessor extends BaseChainProcessor {
       });
 
       console.log(`SUI swap completed, now transferring to user: ${order.recipientAddress}`);
-      
+
       // Transfer swapped tokens to user
       const transferResult = await this.transferSuiTokensToUser(
         order.destTokenAddress,
@@ -231,7 +231,7 @@ export class SameChainProcessor extends BaseChainProcessor {
 
     try {
       const chainId = this.getOkxChainId(order.sourceChainId);
-      
+
       const refundResult = await this.transferEvmTokensToUser(
         order.sourceTokenAddress,
         order.amountIn,
@@ -294,17 +294,21 @@ export class SameChainProcessor extends BaseChainProcessor {
   ): Promise<{ txHash: string; explorerUrl: string }> {
     try {
       console.log(`Transferring ${amount} tokens to ${recipientAddress}`);
-      
+
       const evmWallet = this.okxService.getEvmWallet();
       
+      // Convert amount to proper format for EVM transactions
+      const amountInWei = this.convertEvmToBaseUnits(amount, tokenAddress);
+      console.log(`Converting ${amount} to wei/base units: ${amountInWei}`);
+
       if (tokenAddress === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
         // Native ETH transfer
         const tx = await evmWallet.sendTransaction({
           to: recipientAddress,
-          value: amount,
+          value: amountInWei,
           gasLimit: 21000
         });
-        
+
         const receipt = await tx.wait();
         return {
           txHash: receipt.hash,
@@ -315,11 +319,11 @@ export class SameChainProcessor extends BaseChainProcessor {
         const erc20Abi = [
           'function transfer(address to, uint256 amount) external returns (bool)'
         ];
-        
+
         const contract = new (await import('ethers')).Contract(tokenAddress, erc20Abi, evmWallet);
-        const tx = await contract.transfer(recipientAddress, amount);
+        const tx = await contract.transfer(recipientAddress, amountInWei);
         const receipt = await tx.wait();
-        
+
         return {
           txHash: receipt.hash,
           explorerUrl: this.getExplorerUrl(chainId, receipt.hash)
@@ -338,15 +342,15 @@ export class SameChainProcessor extends BaseChainProcessor {
   ): Promise<{ txHash: string; explorerUrl: string }> {
     try {
       console.log(`Transferring ${amount} SUI tokens to ${recipientAddress}`);
-      
+
       const wallet = Ed25519Keypair.fromSecretKey(this.okxService.config.suiPrivateKey);
       const client = this.okxService.getSuiClient();
-      
+
       const tx = new Transaction();
-      
+
       if (tokenAddress === '0x2::sui::SUI') {
         // Native SUI transfer
-        const [coin] = tx.splitCoins(tx.gas, [amount]);
+        const [coin] = tx.splitCoins(tx.gas, [this.convertToBaseUnits(amount, tokenAddress)]);
         tx.transferObjects([coin], recipientAddress);
       } else {
         // Custom token transfer
@@ -354,19 +358,19 @@ export class SameChainProcessor extends BaseChainProcessor {
           owner: wallet.getPublicKey().toSuiAddress(),
           coinType: tokenAddress
         });
-        
+
         if (coins.data.length === 0) {
           throw new Error(`No coins of type ${tokenAddress} found`);
         }
-        
+
         const coinIds = coins.data.map((coin: any) => coin.coinObjectId);
         const [mergedCoin] = tx.mergeCoins(tx.object(coinIds[0]), coinIds.slice(1).map((id: any) => tx.object(id)));
-        const [transferCoin] = tx.splitCoins(mergedCoin, [amount]);
+        const [transferCoin] = tx.splitCoins(mergedCoin, [this.convertToBaseUnits(amount, tokenAddress)]);
         tx.transferObjects([transferCoin], recipientAddress);
       }
-      
+
       tx.setGasBudget(15000000);
-      
+
       const result = await client.signAndExecuteTransaction({
         transaction: tx,
         signer: wallet,
@@ -375,11 +379,11 @@ export class SameChainProcessor extends BaseChainProcessor {
           showEvents: true
         }
       });
-      
+
       if (result.effects?.status?.status !== 'success') {
         throw new Error(`SUI transfer failed: ${result.effects?.status?.error}`);
       }
-      
+
       return {
         txHash: result.digest,
         explorerUrl: `https://suiscan.xyz/mainnet/tx/${result.digest}`
@@ -398,8 +402,89 @@ export class SameChainProcessor extends BaseChainProcessor {
       '137': 'https://polygonscan.com/tx',
       '42161': 'https://arbiscan.io/tx'
     };
-    
+
     return `${explorers[chainId] || 'https://etherscan.io/tx'}/${txHash}`;
+  }
+
+  private convertEvmToBaseUnits(amount: string, tokenAddress: string): string {
+    try {
+      // Handle decimal amounts by converting to wei/base units
+      const numAmount = parseFloat(amount);
+      
+      // Get decimals based on actual token addresses
+      let decimals = 18; // ETH default
+      
+      // Check against known token addresses
+      const lowerAddress = tokenAddress.toLowerCase();
+      
+      // USDC addresses (6 decimals)
+      if (lowerAddress === '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' || // Ethereum USDC
+          lowerAddress === '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913' || // Base USDC
+          lowerAddress === '0x0b2c639c533813f4aa9d7837caf62653d097ff85' || // Optimism USDC
+          lowerAddress === '0x2791bca1f2de4661ed88a30c99a7a9449aa84174') { // Polygon USDC
+        decimals = 6;
+      }
+      // USDT addresses (6 decimals)
+      else if (lowerAddress === '0xdac17f958d2ee523a2206206994597c13d831ec7' || // Ethereum USDT
+               lowerAddress === '0xfde4c96c8593536e31f229ea8f37b2ada2699bb2' || // Base USDT
+               lowerAddress === '0x94b008aa00579c1307b0ef2c499ad98a8ce58e58') { // Optimism USDT
+        decimals = 6;
+      }
+      // WBTC addresses (8 decimals)
+      else if (lowerAddress === '0x2260fac5e5542a773aa44fbcfedf7c193bc2c599' || // Ethereum WBTC
+               lowerAddress === '0x0555e30da8f98308edb960aa94c0db47230d2b9c' || // Base WBTC
+               lowerAddress === '0x68f180fcce6836688e9084f035309e29bf0a2095') { // Optimism WBTC
+        decimals = 8;
+      }
+      // ETH/WETH addresses (18 decimals) - already default
+      
+      // Use ethers.js parseUnits for proper conversion
+      const ethers = require('ethers');
+      const baseUnits = ethers.parseUnits(amount, decimals);
+      
+      console.log(`Converting ${amount} to EVM base units: ${baseUnits.toString()} (${decimals} decimals for ${tokenAddress})`);
+      
+      return baseUnits.toString();
+    } catch (error) {
+      console.error('Error converting EVM amount to base units:', error);
+      // Fallback: try to parse as already in base units
+      const ethers = require('ethers');
+      try {
+        return ethers.parseEther(amount).toString();
+      } catch {
+        return Math.floor(parseFloat(amount)).toString();
+      }
+    }
+  }
+
+  private convertToBaseUnits(amount: string, tokenAddress: string): string {
+    try {
+      // Handle decimal amounts by converting to base units for SUI
+      const numAmount = parseFloat(amount);
+      
+      // Get decimals for the token (based on SUI token standards)
+      let decimals = 9; // SUI default
+      if (tokenAddress.toLowerCase().includes('usdc')) {
+        decimals = 6;
+      } else if (tokenAddress.toLowerCase().includes('usdt')) {
+        decimals = 6;
+      } else if (tokenAddress.toLowerCase().includes('eth')) {
+        decimals = 8; // ETH on SUI uses 8 decimals
+      } else if (tokenAddress.toLowerCase().includes('btc')) {
+        decimals = 8;
+      }
+      
+      // Convert to base units (multiply by 10^decimals)
+      const baseUnits = Math.floor(numAmount * Math.pow(10, decimals));
+      
+      console.log(`Converting ${amount} to SUI base units: ${baseUnits} (${decimals} decimals)`);
+      
+      return baseUnits.toString();
+    } catch (error) {
+      console.error('Error converting SUI amount to base units:', error);
+      // Fallback: if amount is already an integer string, return as-is
+      return Math.floor(parseFloat(amount)).toString();
+    }
   }
 
   private async simulateDelay(ms: number): Promise<void> {
