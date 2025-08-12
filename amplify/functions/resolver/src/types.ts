@@ -91,6 +91,7 @@ export const CROSS_CHAIN_ROUTES = [
 export interface ProcessingResult {
   success: boolean;
   txHash?: string;
+  swapTxHash?: string;
   actualAmountOut?: string;
   errorReason?: string;
   explorerUrl?: string;

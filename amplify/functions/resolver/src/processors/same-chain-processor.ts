@@ -1,6 +1,7 @@
 import { OrderData, ProcessingResult, ChainType } from '../types';
 import { OKXDexService, OKXConfig, CHAIN_IDS } from '../okx-dex-service';
 import { Ed25519Keypair } from "@mysten/sui/keypairs/ed25519";
+import { Transaction } from '@mysten/sui/transactions';
 
 export abstract class BaseChainProcessor {
   abstract processOrder(order: OrderData): Promise<ProcessingResult>;
@@ -99,12 +100,6 @@ export class SameChainProcessor extends BaseChainProcessor {
       console.log(`Quote received: ${quote.fromToken.tokenSymbol} -> ${quote.toToken.tokenSymbol}`);
       console.log(`Expected output: ${quote.toTokenAmount}`);
 
-      // Validate minimum output requirement
-      // const expectedOutput = BigInt(quote.toTokenAmount);
-      // if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
-      //   throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
-      // }
-
       // Check if token approval is needed (skip for native tokens)
       if (order.sourceTokenAddress !== '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
         console.log('Checking token approval for infinity allowance...');
@@ -136,24 +131,35 @@ export class SameChainProcessor extends BaseChainProcessor {
         }
       }
 
-      // Execute the swap
+      // Execute the swap to resolver wallet first
+      const resolverWalletAddress = this.okxService.getEvmWalletAddress();
       const swapResult = await this.okxService.executeEvmSwap({
         chainId,
         fromTokenAddress: order.sourceTokenAddress,
         toTokenAddress: order.destTokenAddress,
         amount: order.amountIn,
-        // userWalletAddress: order.recipientAddress,
-        userWalletAddress: "0xee098fEA55039762bC5db10a512588a33e9F965E", // hardcode for now
+        userWalletAddress: resolverWalletAddress,
         slippage: '0.005'
       });
 
-      console.log(`EVM same-chain swap completed with tx: ${swapResult.transactionHash}`);
+      console.log(`EVM swap completed, now transferring to user: ${order.recipientAddress}`);
+      
+      // Transfer swapped tokens to user
+      const transferResult = await this.transferEvmTokensToUser(
+        order.destTokenAddress,
+        swapResult.details?.toToken.amount || quote.toToken.amount,
+        order.recipientAddress,
+        chainId
+      );
+
+      console.log(`EVM same-chain swap and transfer completed with tx: ${transferResult.txHash}`);
 
       return {
         success: true,
-        txHash: swapResult.transactionHash!,
+        txHash: transferResult.txHash,
+        swapTxHash: swapResult.transactionHash,
         actualAmountOut: swapResult.details?.toToken.amount || quote.toToken.amount,
-        explorerUrl: swapResult.explorerUrl
+        explorerUrl: transferResult.explorerUrl
       };
     } catch (error: any) {
       console.error('EVM swap error:', error);
@@ -182,16 +188,11 @@ export class SameChainProcessor extends BaseChainProcessor {
       console.log(`SUI Quote received: ${quote.fromToken.tokenSymbol} -> ${quote.toToken.tokenSymbol}`);
       console.log(`Expected output: ${quote.toTokenAmount}`);
 
-      // Validate minimum output
-      // const expectedOutput = BigInt(quote.toTokenAmount);
-      // if (!this.validateMinimumOutput(expectedOutput, order.minAmountOut)) {
-      //   throw new Error(`Output amount ${expectedOutput} is less than minimum required ${order.minAmountOut}`);
-      // }
 
       const wallet = Ed25519Keypair.fromSecretKey(this.okxService.config.suiPrivateKey);
       const walletAddress = wallet.getPublicKey().toSuiAddress()
 
-      // Execute the swap
+      // Execute the swap to resolver wallet first
       const swapResult = await this.okxService.executeSuiSwap({
         chainId,
         fromTokenAddress: order.sourceTokenAddress,
@@ -201,13 +202,23 @@ export class SameChainProcessor extends BaseChainProcessor {
         slippage: '0.005'
       });
 
-      console.log(`SUI same-chain swap completed with tx: ${swapResult.transactionId}`);
+      console.log(`SUI swap completed, now transferring to user: ${order.recipientAddress}`);
+      
+      // Transfer swapped tokens to user
+      const transferResult = await this.transferSuiTokensToUser(
+        order.destTokenAddress,
+        swapResult.details?.toToken.amount || quote.toToken.amount,
+        order.recipientAddress
+      );
+
+      console.log(`SUI same-chain swap and transfer completed with tx: ${transferResult.txHash}`);
 
       return {
         success: true,
-        txHash: swapResult.transactionId!,
+        txHash: transferResult.txHash,
+        swapTxHash: swapResult.transactionId,
         actualAmountOut: swapResult.details?.toToken.amount || quote.toToken.amount,
-        explorerUrl: swapResult.explorerUrl
+        explorerUrl: transferResult.explorerUrl
       };
     } catch (error: any) {
       console.error('SUI swap error:', error);
@@ -219,17 +230,22 @@ export class SameChainProcessor extends BaseChainProcessor {
     console.log(`Refunding EVM order to ${order.senderAddress}`);
 
     try {
-      // TODO: Implement actual EVM refund transaction
-      // For now, simulate refund
-      await this.simulateDelay(1000);
-      const txHash = this.generateMockTxHash();
+      const chainId = this.getOkxChainId(order.sourceChainId);
+      
+      const refundResult = await this.transferEvmTokensToUser(
+        order.sourceTokenAddress,
+        order.amountIn,
+        order.senderAddress,
+        chainId
+      );
 
-      console.log(`EVM refund completed with tx: ${txHash}`);
+      console.log(`EVM refund completed with tx: ${refundResult.txHash}`);
 
       return {
         success: true,
-        txHash,
-        actualAmountOut: order.amountIn // Full refund
+        txHash: refundResult.txHash,
+        actualAmountOut: order.amountIn,
+        explorerUrl: refundResult.explorerUrl
       };
     } catch (error: any) {
       throw new Error(`EVM refund failed: ${error.message}`);
@@ -240,17 +256,19 @@ export class SameChainProcessor extends BaseChainProcessor {
     console.log(`Refunding SUI order to ${order.senderAddress}`);
 
     try {
-      // TODO: Implement actual SUI refund transaction
-      // For now, simulate refund
-      await this.simulateDelay(1000);
-      const txHash = this.generateMockTxHash();
+      const refundResult = await this.transferSuiTokensToUser(
+        order.sourceTokenAddress,
+        order.amountIn,
+        order.senderAddress
+      );
 
-      console.log(`SUI refund completed with tx: ${txHash}`);
+      console.log(`SUI refund completed with tx: ${refundResult.txHash}`);
 
       return {
         success: true,
-        txHash,
-        actualAmountOut: order.amountIn // Full refund
+        txHash: refundResult.txHash,
+        actualAmountOut: order.amountIn,
+        explorerUrl: refundResult.explorerUrl
       };
     } catch (error: any) {
       throw new Error(`SUI refund failed: ${error.message}`);
@@ -266,6 +284,122 @@ export class SameChainProcessor extends BaseChainProcessor {
       case 42161: return CHAIN_IDS.ARBITRUM;
       default: throw new Error(`Unsupported chain ID: ${chainId}`);
     }
+  }
+
+  private async transferEvmTokensToUser(
+    tokenAddress: string,
+    amount: string,
+    recipientAddress: string,
+    chainId: string
+  ): Promise<{ txHash: string; explorerUrl: string }> {
+    try {
+      console.log(`Transferring ${amount} tokens to ${recipientAddress}`);
+      
+      const evmWallet = this.okxService.getEvmWallet();
+      
+      if (tokenAddress === '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE') {
+        // Native ETH transfer
+        const tx = await evmWallet.sendTransaction({
+          to: recipientAddress,
+          value: amount,
+          gasLimit: 21000
+        });
+        
+        const receipt = await tx.wait();
+        return {
+          txHash: receipt.hash,
+          explorerUrl: this.getExplorerUrl(chainId, receipt.hash)
+        };
+      } else {
+        // ERC20 token transfer
+        const erc20Abi = [
+          'function transfer(address to, uint256 amount) external returns (bool)'
+        ];
+        
+        const contract = new (await import('ethers')).Contract(tokenAddress, erc20Abi, evmWallet);
+        const tx = await contract.transfer(recipientAddress, amount);
+        const receipt = await tx.wait();
+        
+        return {
+          txHash: receipt.hash,
+          explorerUrl: this.getExplorerUrl(chainId, receipt.hash)
+        };
+      }
+    } catch (error: any) {
+      console.error('EVM transfer failed:', error);
+      throw error;
+    }
+  }
+
+  private async transferSuiTokensToUser(
+    tokenAddress: string,
+    amount: string,
+    recipientAddress: string
+  ): Promise<{ txHash: string; explorerUrl: string }> {
+    try {
+      console.log(`Transferring ${amount} SUI tokens to ${recipientAddress}`);
+      
+      const wallet = Ed25519Keypair.fromSecretKey(this.okxService.config.suiPrivateKey);
+      const client = this.okxService.getSuiClient();
+      
+      const tx = new Transaction();
+      
+      if (tokenAddress === '0x2::sui::SUI') {
+        // Native SUI transfer
+        const [coin] = tx.splitCoins(tx.gas, [amount]);
+        tx.transferObjects([coin], recipientAddress);
+      } else {
+        // Custom token transfer
+        const coins = await client.getCoins({
+          owner: wallet.getPublicKey().toSuiAddress(),
+          coinType: tokenAddress
+        });
+        
+        if (coins.data.length === 0) {
+          throw new Error(`No coins of type ${tokenAddress} found`);
+        }
+        
+        const coinIds = coins.data.map((coin: any) => coin.coinObjectId);
+        const [mergedCoin] = tx.mergeCoins(tx.object(coinIds[0]), coinIds.slice(1).map((id: any) => tx.object(id)));
+        const [transferCoin] = tx.splitCoins(mergedCoin, [amount]);
+        tx.transferObjects([transferCoin], recipientAddress);
+      }
+      
+      tx.setGasBudget(15000000);
+      
+      const result = await client.signAndExecuteTransaction({
+        transaction: tx,
+        signer: wallet,
+        options: {
+          showEffects: true,
+          showEvents: true
+        }
+      });
+      
+      if (result.effects?.status?.status !== 'success') {
+        throw new Error(`SUI transfer failed: ${result.effects?.status?.error}`);
+      }
+      
+      return {
+        txHash: result.digest,
+        explorerUrl: `https://suiscan.xyz/mainnet/tx/${result.digest}`
+      };
+    } catch (error: any) {
+      console.error('SUI transfer failed:', error);
+      throw error;
+    }
+  }
+
+  private getExplorerUrl(chainId: string, txHash: string): string {
+    const explorers: { [key: string]: string } = {
+      '1': 'https://etherscan.io/tx',
+      '8453': 'https://basescan.org/tx',
+      '10': 'https://optimistic.etherscan.io/tx',
+      '137': 'https://polygonscan.com/tx',
+      '42161': 'https://arbiscan.io/tx'
+    };
+    
+    return `${explorers[chainId] || 'https://etherscan.io/tx'}/${txHash}`;
   }
 
   private async simulateDelay(ms: number): Promise<void> {

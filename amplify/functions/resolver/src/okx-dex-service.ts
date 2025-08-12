@@ -57,7 +57,7 @@ export interface SwapResult {
 export class OKXDexService {
     private evmClient: OKXDexClient;
     private suiClient: any;
-    private config: OKXConfig;
+    public config: OKXConfig;
 
     constructor(config: OKXConfig) {
         this.config = config;
@@ -373,6 +373,36 @@ export class OKXDexService {
         } catch {
             return false;
         }
+    }
+
+    // Wallet accessor methods
+    getEvmWallet(): any {
+        const evmProvider = new ethers.JsonRpcProvider(this.getRpcUrl('evm'));
+        return createEVMWallet(this.config.evmPrivateKey, evmProvider);
+    }
+
+    getEvmWalletAddress(): string {
+        return this.getEvmWallet().address;
+    }
+
+    getSuiClient(): any {
+        if (!this.config.suiPrivateKey) {
+            throw new Error('SUI private key not configured');
+        }
+        
+        const { SuiClient, getFullnodeUrl } = require('@mysten/sui/client');
+        return new SuiClient({
+            url: getFullnodeUrl('mainnet')
+        });
+    }
+
+    getSuiWalletAddress(): string {
+        if (!this.config.suiPrivateKey) {
+            throw new Error('SUI private key not configured');
+        }
+        
+        const wallet = Ed25519Keypair.fromSecretKey(this.config.suiPrivateKey);
+        return wallet.getPublicKey().toSuiAddress();
     }
 }
 
