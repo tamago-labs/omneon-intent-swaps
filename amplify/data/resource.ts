@@ -1,29 +1,7 @@
 import { type ClientSchema, a, defineData } from "@aws-amplify/backend";
 import { resolverScheduler } from "../functions/resolver/resource"
 
-const schema = a.schema({
-  extractTradingIntent: a.generation({
-    aiModel: a.ai.model('Claude 3.5 Sonnet'),
-    systemPrompt: `You are a Web3 trading intent parser that extracts structured data from the input message. Identify amount, tokens, chains, mode (same-chain or cross-chain), and the condition.`
-  })
-    .arguments({
-      message: a.string().required()
-    })
-    .returns(
-      a.customType({
-        amount: a.string().required(),
-        sourceToken: a.string().required(),
-        sourceChain: a.string().required(),
-        targetToken: a.string().required(),
-        targetChain: a.string().required(),
-        isCrossChainMode: a.boolean().default(false),
-        condition: a.string().required(),
-        slippage: a.string().default("0.5"),
-        deadline: a.string().default("40"),
-        hasCondition: a.boolean().default(true)
-      })
-    )
-    .authorization((allow) => [allow.publicApiKey()]),
+const schema = a.schema({ 
   Resolver: a
     .model({
       name: a.string().required(),
