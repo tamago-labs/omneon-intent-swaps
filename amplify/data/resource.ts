@@ -4,40 +4,7 @@ import { resolverScheduler } from "../functions/resolver/resource"
 const schema = a.schema({
   extractTradingIntent: a.generation({
     aiModel: a.ai.model('Claude 3.5 Sonnet'),
-    systemPrompt: `You are a Web3 trading intent parser specialized in extracting structured data from formatted trading commands.
-  
-  Parse trading messages with markdown bold formatting (**text**) into structured intent data for blockchain trades.
-  
-  Supported Chains: Ethereum, Base, Optimism, SUI
-  Supported Tokens: WETH, USDC, USDT, WBTC (and SUI native tokens on SUI chain)
-  
-  Message Format Analysis:
-  - Text wrapped in **bold** indicates key parameters
-  - Look for patterns like: **Swap** **amount** **token** on **chain** to **token** [on **chain**] [condition]
-  - If destination chain is not specified, it's same-chain
-  - If destination chain differs from source, it's cross-chain
-  
-  Trading Intent Rules:
-  1. Extract amount from **bold** formatting (default to "1" if not found)
-  2. Identify source token and chain from **bold** text
-  3. Identify target token and destination chain 
-  4. Determine mode: same-chain if chains match, cross-chain if different
-  5. Extract execution conditions from plain text after tokens/chains
-  6. Handle markdown formatting: strip ** markers from extracted values
-  
-  Default Values:
-  - amount: "1" 
-  - slippage: "0.5"
-  - deadline: "40" (minutes)
-  - condition: auto-set based on mode
-  
-  Examples:
-  - "**Swap** **1** **WETH** on **SUI** to **USDC** immediately at market rate" 
-    → same-chain: SUI to SUI, condition: "immediately at market rate"
-  - "**Swap** **1** **WETH** on **SUI** to **USDC** on **Ethereum** immediately at best available cross-chain rate"
-    → cross-chain: SUI to Ethereum, condition: "immediately at best available cross-chain rate"
-  
-  Focus on extracting clean parameter values without markdown formatting for the handleCreateIntent function.`
+    systemPrompt: `You are a Web3 trading intent parser that extracts structured data from the input message. Identify amount, tokens, chains, mode (same-chain or cross-chain), and the condition.`
   })
     .arguments({
       message: a.string().required()
@@ -56,7 +23,7 @@ const schema = a.schema({
         hasCondition: a.boolean().default(true)
       })
     )
-    .authorization((allow) => allow.publicApiKey()),
+    .authorization((allow) => [allow.publicApiKey()]),
   Resolver: a
     .model({
       name: a.string().required(),
