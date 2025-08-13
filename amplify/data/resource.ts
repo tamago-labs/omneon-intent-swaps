@@ -16,7 +16,7 @@ const schema = a.schema({
         sourceChain: a.string().required(),
         targetToken: a.string().required(),
         targetChain: a.string().required(),
-        mode: a.enum(['same-chain', 'cross-chain']),
+        isCrossChainMode: a.boolean().default(false),
         condition: a.string().required(),
         slippage: a.string().default("0.5"),
         deadline: a.string().default("40"),
