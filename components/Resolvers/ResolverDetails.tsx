@@ -70,6 +70,14 @@ const ResolverDetails: React.FC<ResolverDetailsProps> = ({ resolver, orders, onC
     return `$${value.toFixed(2)}`;
   };
 
+  const getSourceChainType = (chainType: number) => {
+    if (chainType === 1) {
+      return "SUI"
+    } else  {
+      return "EVM"
+    }
+  }
+
   return (
     <motion.div
       className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
@@ -199,7 +207,7 @@ const ResolverDetails: React.FC<ResolverDetailsProps> = ({ resolver, orders, onC
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="text-sm text-slate-400">
-                        {order.sourceChainType} → {order.destChainType}
+                        { getSourceChainType(Number(order.sourceChainType)) } → { getSourceChainType(Number(order.destChainType)) }
                       </div>
                       <div className={`px-2 py-1 rounded-md text-xs ${getStatusColor(order.status)}`}>
                         {order.status}

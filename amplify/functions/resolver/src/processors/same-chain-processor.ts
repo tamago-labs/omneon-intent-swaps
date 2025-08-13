@@ -363,11 +363,6 @@ export class SameChainProcessor extends BaseChainProcessor {
           throw new Error(`No coins of type ${tokenAddress} found`);
         }
 
-        // const coinIds = coins.data.map((coin: any) => coin.coinObjectId); 
-        // const [mergedCoin] = tx.mergeCoins(tx.object(coinIds[0]), coinIds.slice(1).map((id: any) => tx.object(id)));
-        // const [transferCoin] = tx.splitCoins(mergedCoin, [tx.pure("u64", this.convertToBaseUnits(amount, tokenAddress))]);
-        // tx.transferObjects([transferCoin], tx.pure("address", recipientAddress));
-
         const [mainCoin, ...restCoins] = coins.data;
         if (restCoins.length > 0) {
           tx.mergeCoins(
